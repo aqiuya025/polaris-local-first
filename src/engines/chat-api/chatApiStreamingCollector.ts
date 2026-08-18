@@ -8,6 +8,7 @@ import {
   extractProviderErrorMessage,
   formatEmptyProviderResponseMessage
 } from '../provider-runtime/providerRuntimeErrorPayload';
+import { captureOpenRouterUpstreamDebugPayload } from '../provider-runtime/openRouterUpstreamDebug';
 import { applyProviderRuntimeStreamEvents } from './chatApiCanonicalStreamAccumulator';
 import {
   appendChunk,
@@ -66,6 +67,7 @@ function flushStreamingPayload(params: {
     if (candidate === '[DONE]') return true;
     const parsed = tryParseStreamPayload(candidate);
     if (!parsed) continue;
+    captureOpenRouterUpstreamDebugPayload(parsed);
     const events = parseStreamEvents(parsed);
     const errorEvent = events.find((event) => event.type === 'error');
     const providerErrorMessage = errorEvent?.type === 'error'
@@ -157,6 +159,7 @@ export function createStreamingReplyCollector(
     if (!collected.content.trim() && rawResponseText.trim()) {
       const parsed = tryParseStreamPayload(rawResponseText.trim());
       if (parsed && typeof parsed === 'object') {
+        captureOpenRouterUpstreamDebugPayload(parsed);
         const fallbackPayload = parsed as {
           choices?: Array<{ message?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown; thinking?: unknown } }>;
           content?: unknown;
