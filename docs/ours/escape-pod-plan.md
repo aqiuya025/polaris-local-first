@@ -1,6 +1,6 @@
 # Escape Pod Plan / 逃生舱计划
 
-Status: **PHASE 0 SEALED · CACHE FIX IMPLEMENTED · VALIDATION PENDING**
+Status: **PHASE 0 SEALED · CACHE REGRESSION CI GREEN · LIVE VALIDATION PENDING**
 
 This document defines the working roadmap for the aqiuya Polaris fork.
 
@@ -151,21 +151,28 @@ Phase-0 conclusions:
 - treat complete backup ZIPs as credential-bearing secrets;
 - enter runtime work through the cache regression suite, not UI cleanup.
 
-### Phase 1 — Cache regression suite — **AUTHORED**
+### Phase 1 — Cache regression suite — **CI GREEN**
 
-The dedicated OpenRouter Claude cache regression suite now covers ordinary conversation caching, completed native tool results, parallel and sequential tools, large tool results, post-tool user continuation, and a scope guard for ordinary OpenAI-compatible providers.
+The dedicated OpenRouter Claude cache regression suite covers ordinary conversation caching, completed native tool results, parallel and sequential tools, large tool results, post-tool user continuation, and a scope guard for ordinary OpenAI-compatible providers.
 
 Focused workflow:
 
 - `.github/workflows/phase1-cache-regression.yml`
 
+Observed GitHub Actions sequence:
+
+- pre-fix regression run on `8f995e4` failed;
+- `a7b384a` passed after the production fix;
+- `9547a81` passed with extended regression coverage;
+- `9a05c00` passed with provider-scope and visible-assistant guards.
+
 Implementation record:
 
 - `docs/ours/phase-1-cache-fix.md`
 
-Actual test-run evidence is still required before this phase is considered execution-validated.
+Phase 1 is execution-validated.
 
-### Phase 2 — Minimal cache fix — **IMPLEMENTED / VALIDATION PENDING**
+### Phase 2 — Minimal cache fix — **IMPLEMENTED / CI VALIDATED / LIVE VALIDATION PENDING**
 
 The smallest provider/runtime patch has been applied in `providerRuntimeOpenAiCompatibleAdapter.ts`:
 
@@ -175,7 +182,7 @@ The smallest provider/runtime patch has been applied in `providerRuntimeOpenAiCo
 
 Do not mix this patch with product UI cleanup.
 
-Paid live verification uses Sonnet first. Opus is never the first test target.
+Remaining requirement: one small paid provider-level validation with Sonnet on the forked build. Opus is never the first test target.
 
 ### Phase 3 — Web-first smoke build
 
@@ -215,6 +222,6 @@ Runtime changes should be small, test-backed and separately reviewable.
 
 ## Current active task
 
-**Cache execution validation, then Phase 3 web-first smoke build.**
+**Phase 3 — web-first smoke build, followed by one Sonnet live cache validation.**
 
-Do not declare the cache fix complete until there is an actual test-run result and a small Sonnet live run demonstrates that the post-MCP cache frontier advances instead of repeatedly rewriting the same large suffix.
+The focused regression suite is green. The remaining cache question is provider-level accounting on real OpenRouter traffic: after one MCP/tool result, subsequent requests must read the new prefix instead of repeatedly rewriting the same post-tool suffix.
