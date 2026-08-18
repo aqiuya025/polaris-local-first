@@ -4,6 +4,7 @@ import { installBootRescueSurface } from './app/bootstrap/bootRescueSurface';
 import { installClientDiagnosticsReporter } from './app/bootstrap/clientDiagnosticsReporter';
 import { installGlobalClientErrorLogging } from './app/bootstrap/clientErrorLog';
 import { initializeRuntimeStoreLocalDataBackend } from './app/bootstrap/storeLocalDataBackendBootstrap';
+import { installOpenRouterUpstreamDebugOverlay } from './app/developer/openRouterUpstreamDebugOverlay';
 import { recordAppRuntimeLogEntry } from './infrastructure/appRuntimeLog';
 import { AppErrorBoundary } from './ui/AppErrorBoundary';
 import { AppShell } from './ui/AppShell';
@@ -16,6 +17,7 @@ installGlobalClientErrorLogging();
 installClientDiagnosticsReporter();
 const rootElement = document.getElementById('root');
 const bootRescueSurface = installBootRescueSurface({ root: rootElement });
+installOpenRouterUpstreamDebugOverlay();
 
 recordAppRuntimeLogEntry({
   at: Date.now(),
