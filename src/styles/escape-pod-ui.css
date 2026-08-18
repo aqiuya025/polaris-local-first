@@ -1,0 +1,490 @@
+/*
+ * Escape Pod UI pass 1
+ *
+ * Claude / Chatnest inspired geometry implemented independently on top of the
+ * Polaris engine. Keep this layer late in the cascade so upstream UI remains
+ * easy to rebase while the Escape Pod can stay deliberately small.
+ */
+
+.app-shell.has-desktop-sidebar {
+  --desktop-sidebar-width: 272px;
+  --escape-pod-reading-width: 760px;
+}
+
+.app-shell.has-desktop-sidebar.desktop-sidebar-collapsed {
+  --desktop-sidebar-width: 62px;
+}
+
+.app-shell.has-desktop-sidebar .bg-glow {
+  opacity: 0.12;
+}
+
+.app-shell.has-desktop-sidebar .desktop-app-sidebar.escape-pod-sidebar {
+  gap: 10px;
+  padding: max(16px, calc(12px + env(safe-area-inset-top, 0px))) 12px 14px;
+  border-right: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 94%, var(--surface) 6%);
+  box-shadow: none;
+}
+
+.escape-pod-sidebar-brand-row {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px 0 6px;
+}
+
+.escape-pod-sidebar-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.escape-pod-sidebar-brand-mark {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--accent) 78%, var(--text) 22%);
+}
+
+.escape-pod-sidebar-brand-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.escape-pod-sidebar-brand-copy strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+
+.escape-pod-sidebar-brand-copy small {
+  color: color-mix(in srgb, var(--text-muted) 76%, transparent);
+  font-size: 9.5px;
+  font-weight: 560;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.escape-pod-new-chat {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--text) 92%, var(--surface-solid) 8%);
+  color: var(--surface-solid);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 620;
+  cursor: pointer;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--text) 9%, transparent);
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), opacity 160ms ease;
+}
+
+.escape-pod-new-chat:hover,
+.escape-pod-new-chat:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.escape-pod-sidebar-primary {
+  gap: 1px;
+  padding: 2px 0 5px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item {
+  min-height: 36px;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: color-mix(in srgb, var(--text) 78%, var(--text-muted) 22%);
+  font-size: 13.5px;
+  font-weight: 520;
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item:hover,
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item:focus-visible {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item.active {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+  font-weight: 620;
+}
+
+.escape-pod-sidebar .desktop-sidebar-section-head {
+  min-height: 30px;
+  padding: 2px 4px 0 7px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-section-label {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+  font-size: 11px;
+  font-weight: 580;
+  letter-spacing: 0.015em;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-list {
+  gap: 1px;
+  padding-right: 0;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-body {
+  grid-template-columns: minmax(0, 1fr) 26px;
+  gap: 0;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread {
+  min-height: 36px;
+  padding: 7px 9px;
+  border-radius: 10px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-title {
+  gap: 5px;
+  color: color-mix(in srgb, var(--text) 84%, var(--text-soft) 16%);
+  font-size: 12.5px;
+  font-weight: 520;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-row.active .desktop-sidebar-thread,
+.escape-pod-sidebar .desktop-sidebar-thread-row.menu-open .desktop-sidebar-thread,
+.escape-pod-sidebar .desktop-sidebar-thread:hover,
+.escape-pod-sidebar .desktop-sidebar-thread:focus-visible {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-row.active .desktop-sidebar-thread-title {
+  font-weight: 620;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-more {
+  width: 26px;
+  min-height: 36px;
+  border-radius: 9px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-menu {
+  margin: 4px 4px 7px 8px;
+  border-radius: 13px;
+  background: var(--surface-solid);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.escape-pod-sidebar-footer {
+  padding-top: 7px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 42%, transparent);
+}
+
+.escape-pod-sidebar .desktop-sidebar-settings {
+  min-height: 36px;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: color-mix(in srgb, var(--text) 72%, var(--text-muted) 28%);
+  font-size: 13px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-settings:hover,
+.escape-pod-sidebar .desktop-sidebar-settings:focus-visible {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+
+.escape-pod-sidebar.collapsed {
+  padding-inline: 10px !important;
+}
+
+.escape-pod-sidebar.collapsed .escape-pod-sidebar-brand-row {
+  padding-inline: 0;
+  justify-content: center;
+}
+
+.escape-pod-sidebar.collapsed .escape-pod-sidebar-brand,
+.escape-pod-sidebar.collapsed .escape-pod-sidebar-brand-copy,
+.escape-pod-sidebar.collapsed .escape-pod-new-chat span,
+.escape-pod-sidebar.collapsed .desktop-sidebar-nav-item span,
+.escape-pod-sidebar.collapsed .desktop-sidebar-section-label,
+.escape-pod-sidebar.collapsed .desktop-sidebar-thread-title,
+.escape-pod-sidebar.collapsed .desktop-sidebar-thread-more,
+.escape-pod-sidebar.collapsed .desktop-sidebar-thread-menu,
+.escape-pod-sidebar.collapsed .desktop-sidebar-settings span {
+  display: none;
+}
+
+.escape-pod-sidebar.collapsed .escape-pod-new-chat,
+.escape-pod-sidebar.collapsed .desktop-sidebar-nav-item,
+.escape-pod-sidebar.collapsed .desktop-sidebar-settings {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  align-self: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.escape-pod-sidebar.collapsed .desktop-sidebar-threads {
+  display: none;
+}
+
+/* Chat canvas: quiet, centered and reading-first. */
+.app-shell.has-desktop-sidebar .world-chat {
+  background: color-mix(in srgb, var(--surface-solid) 96%, var(--bg) 4%);
+}
+
+.app-shell.has-desktop-sidebar .chat-flow {
+  gap: 26px;
+  padding-top: 28px;
+  padding-right: max(28px, calc((100% - var(--escape-pod-reading-width)) / 2));
+  padding-bottom: 28px;
+  padding-left: max(28px, calc((100% - var(--escape-pod-reading-width)) / 2));
+}
+
+.app-shell.has-desktop-sidebar .msg-row.user + .msg-row.assistant,
+.app-shell.has-desktop-sidebar .msg-row.assistant + .msg-row.user {
+  margin-top: 4px;
+}
+
+.app-shell.has-desktop-sidebar .message-avatar-slot {
+  display: none;
+}
+
+.app-shell.has-desktop-sidebar .message-turn.assistant,
+.app-shell.has-desktop-sidebar .message-turn.assistant.with-avatar,
+.app-shell.has-desktop-sidebar .message-turn.assistant .message-turn-head {
+  width: 100%;
+  max-width: 100%;
+}
+
+.app-shell.has-desktop-sidebar .message-turn.assistant.with-avatar .message-turn-stack {
+  width: 100%;
+  max-width: 100%;
+}
+
+.app-shell.has-desktop-sidebar .bubble-frame.assistant,
+.app-shell.has-desktop-sidebar .bubble.assistant {
+  width: 100%;
+  max-width: 100%;
+}
+
+.app-shell.has-desktop-sidebar .bubble.assistant {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  font-size: 16px;
+  line-height: 1.68;
+}
+
+.app-shell.has-desktop-sidebar .bubble-frame.assistant.streaming-live::before,
+.app-shell.has-desktop-sidebar .bubble-frame.assistant.settling::before {
+  display: none;
+}
+
+.app-shell.has-desktop-sidebar .message-turn.user .message-turn-stack {
+  max-width: min(100%, 78%);
+}
+
+.app-shell.has-desktop-sidebar .bubble.user {
+  padding: 10px 15px;
+  border: 0;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--text) 6%, var(--surface-solid) 94%);
+  box-shadow: none;
+  backdrop-filter: none;
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.app-shell.has-desktop-sidebar .message-identity-meta {
+  margin-bottom: 5px;
+  color: color-mix(in srgb, var(--text-muted) 66%, transparent);
+  font-size: 10px;
+  opacity: 0.72;
+}
+
+.app-shell.has-desktop-sidebar .message-identity-name {
+  color: color-mix(in srgb, var(--text) 66%, var(--text-muted) 34%);
+  font-size: 10.5px;
+  font-weight: 560;
+}
+
+.app-shell.has-desktop-sidebar .message-inline-actions.assistant {
+  gap: 2px;
+  margin-top: 9px;
+  padding-left: 0;
+  opacity: 0.62;
+  transition: opacity 150ms ease;
+}
+
+.app-shell.has-desktop-sidebar .msg-row.assistant:hover .message-inline-actions.assistant,
+.app-shell.has-desktop-sidebar .msg-row.assistant:focus-within .message-inline-actions.assistant {
+  opacity: 1;
+}
+
+.app-shell.has-desktop-sidebar .message-inline-actions.assistant .micro-action-btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.app-shell.has-desktop-sidebar .message-inline-actions.assistant .micro-action-btn:hover,
+.app-shell.has-desktop-sidebar .message-inline-actions.assistant .micro-action-btn:focus-visible {
+  border: 0;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.app-shell.has-desktop-sidebar .message-usage-line {
+  gap: 2px 7px;
+  padding: 2px 0 0;
+  color: color-mix(in srgb, var(--text-muted) 58%, transparent);
+  font-size: 9.5px;
+  opacity: 0.72;
+}
+
+.app-shell.has-desktop-sidebar .message-usage-line-item.cache {
+  color: color-mix(in srgb, var(--text-muted) 72%, var(--accent) 8%);
+}
+
+/* The Escape Pod release profile does not expose the upstream Task ledger. */
+.app-shell.has-desktop-sidebar .task-runtime-card,
+.app-shell.has-desktop-sidebar .task-runtime-dock,
+.app-shell.has-desktop-sidebar .message-task-receipt-panel {
+  display: none !important;
+}
+
+/* Composer: one calm rounded card instead of a floating control cluster. */
+.app-shell.has-desktop-sidebar .chat-dock {
+  padding-top: 8px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-solid) 0%, transparent) 0%,
+    color-mix(in srgb, var(--surface-solid) 88%, transparent) 34%,
+    var(--surface-solid) 100%
+  );
+}
+
+.app-shell.has-desktop-sidebar .chat-composer {
+  width: min(100%, calc(var(--escape-pod-reading-width) + 40px));
+  margin: 0 auto;
+  gap: 7px;
+  padding: 0 20px;
+}
+
+.app-shell.has-desktop-sidebar .chat-box-shell {
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  border-radius: 27px;
+  background: color-mix(in srgb, var(--surface-solid) 96%, var(--surface) 4%);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--text) 4%, transparent),
+    0 10px 28px color-mix(in srgb, var(--text) 6%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.app-shell.has-desktop-sidebar .chat-box-shell:focus-within {
+  border: 1px solid color-mix(in srgb, var(--border-hover) 74%, transparent);
+  background: var(--surface-solid);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--text) 4%, transparent),
+    0 12px 32px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.app-shell.has-desktop-sidebar .chat-box-main {
+  min-height: 44px;
+  gap: 6px;
+}
+
+.app-shell.has-desktop-sidebar .chat-box textarea {
+  min-height: 34px;
+  max-height: 168px;
+  padding: 7px 3px 4px;
+  font-size: 15.5px;
+  line-height: 1.48;
+}
+
+.app-shell.has-desktop-sidebar .composer-slot-btn {
+  width: 32px;
+  min-width: 32px;
+  min-height: 36px;
+  padding: 0;
+  color: color-mix(in srgb, var(--text-muted) 72%, var(--text-soft) 28%);
+}
+
+.app-shell.has-desktop-sidebar .composer-slot-btn:hover,
+.app-shell.has-desktop-sidebar .composer-slot-btn:focus-visible {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+
+.app-shell.has-desktop-sidebar .send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.app-shell.has-desktop-sidebar .send-btn.has-content {
+  background: color-mix(in srgb, var(--text) 92%, var(--surface-solid) 8%);
+  color: var(--surface-solid);
+  box-shadow: none;
+}
+
+.app-shell.has-desktop-sidebar .send-btn.has-content:hover,
+.app-shell.has-desktop-sidebar .send-btn.has-content:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.app-shell.has-desktop-sidebar .chat-workspace-banner {
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+@media (max-width: 980px) {
+  .app-shell.has-desktop-sidebar {
+    --desktop-sidebar-width: 244px;
+  }
+
+  .app-shell.has-desktop-sidebar .chat-flow {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .app-shell.has-desktop-sidebar .chat-composer {
+    padding-inline: 16px;
+  }
+}
