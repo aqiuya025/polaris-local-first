@@ -1,6 +1,6 @@
 # Phase 1/2 Cache Fix Record
 
-Status: **IMPLEMENTED · CI GREEN · PAID LIVE VALIDATION PENDING**
+Status: **FIRST PATCH CI GREEN · PAID LIVE VALIDATION FAILED · FORENSICS ACTIVE**
 
 This note records the first runtime patch in the Escape Pod Plan.
 
@@ -18,7 +18,7 @@ Observed pattern:
 
 The expensive Opus 4.7 session was an extreme example: roughly 1.28M prompt tokens, roughly 1.22M cache writes, zero cache reads and about $8.20 usage.
 
-## Source-level cause
+## Source-level cause addressed by the first patch
 
 `providerRuntimeOpenAiCompatibleAdapter.ts` selected the short-lived rolling breakpoint by scanning backwards for the latest non-empty textual `user` or `assistant` message in the `conversation` segment.
 
@@ -33,7 +33,7 @@ The `tool` result was therefore not eligible for the rolling breakpoint. A tool-
 
 Result: a large MCP result could remain permanently beyond the last reusable rolling breakpoint and be rewritten on subsequent requests.
 
-## Implemented fix
+## Implemented first fix
 
 Commit: `a7b384a7cf1aee4b36908ebe24bed606e4cbe44f`
 
@@ -98,21 +98,27 @@ GitHub Actions was observed directly in the repository UI after the patch sequen
 - `9547a81` — extended regression coverage — passed;
 - `9a05c00` — OpenRouter-Claude scope guard and visible-assistant case — passed.
 
-This provides actual execution evidence that the focused regression suite is green after the fix, not only static source review.
+This provides actual execution evidence that the focused regression suite is green after the first fix, not only static source review.
 
-The production patch is therefore **CI validated**. The remaining validation is the paid provider-level behavior test against real OpenRouter Claude prompt-cache accounting.
+## Paid provider-level validation result
 
-## Paid live validation contract
+The first fix did **not** solve the complete live problem.
 
-Use Sonnet first, with Custom Body empty.
+Real OpenRouter Sonnet 4.6 + real Ombre Brain MCP produced repeated later turns around:
 
-Expected sequence:
+```text
+input  ≈ 72k
+read   ≈ 23k
+write  ≈ 49k
+miss   ≈ 49k
+```
 
-1. ordinary conversation establishes cache reads;
-2. invoke one MCP tool and receive a substantial tool result;
-3. the first request after that exchange may write the new suffix;
-4. subsequent requests should read the tool-result prefix instead of repeatedly rewriting the same large suffix;
-5. cache read frontier should advance rather than remain permanently stuck before MCP;
-6. only after Sonnet succeeds may an optional small Opus confirmation be attempted.
+The same roughly 49k suffix continued to miss and be written on ordinary turns after the MCP exchange. Therefore the cache marker reaching the Polaris wire format is not sufficient evidence that the transformed Anthropic request has a reusable stable prefix.
+
+The next investigation is recorded in:
+
+`docs/ours/phase-1-live-cache-forensics.md`
+
+OpenRouter upstream-body echo capture is now installed behind `?debugUpstream=1` to inspect the exact transformed Anthropic `tools`, `system`, `messages`, and surviving `cache_control` locations before changing cache logic again.
 
 Opus is not a test runner.
