@@ -82,15 +82,25 @@ function buildOpenAiCompatibleCacheControl(ttl: '5m' | '1h' = '1h'): OpenAiCompa
 
 function resolveOpenAiCompatibleCacheControlIndexes(
   context: ProviderRuntimeRequestInput['context'],
-  orderedMessages: OrderedContextMessage[]
+  orderedMessages: OrderedContextMessage[],
+  completeNativeToolResultIndexes: ReadonlySet<number> = new Set<number>()
 ) {
   let latestConversationIndex = -1;
   for (let index = orderedMessages.length - 1; index >= 0; index -= 1) {
     const message = orderedMessages[index];
-    if (
-      message?.contextSegmentKind === 'conversation'
+    const hasConversationText = Boolean(
+      message
       && (message.role === 'user' || message.role === 'assistant')
       && extractTextPayload(message.content).trim().length > 0
+    );
+    const isCompleteNativeToolResult = Boolean(
+      message?.role === 'tool'
+      && message.toolResult
+      && completeNativeToolResultIndexes.has(index)
+    );
+    if (
+      message?.contextSegmentKind === 'conversation'
+      && (hasConversationText || isCompleteNativeToolResult)
     ) {
       latestConversationIndex = index;
       break;
@@ -261,7 +271,11 @@ function buildOpenAiCompatibleMessages(
   const normalizedToolNames = buildHistoricalToolCallNameMap(orderedMessages);
   const completeNativeToolHistory = collectCompleteNativeToolHistoryIndexes(orderedMessages);
   const cacheControlIndexes = capability.cache.openAiCompatibleCacheControl
-    ? resolveOpenAiCompatibleCacheControlIndexes(context, orderedMessages)
+    ? resolveOpenAiCompatibleCacheControlIndexes(
+        context,
+        orderedMessages,
+        completeNativeToolHistory.toolResultIndexes
+      )
     : new Map<number, OpenAiCompatibleCacheControl>();
 
   return orderedMessages.map((message, index) => {
@@ -313,14 +327,17 @@ function buildOpenAiCompatibleMessages(
           content: buildToolResultTranscript(message, normalizedToolName)
         };
       }
+      const toolResultContent = buildToolResultPayloadText(message, {
+        toolName: normalizedToolName,
+        kind: normalizedToolName
+      });
       return {
         role: 'tool' as const,
         tool_call_id: message.toolResult.toolCallId,
         name: normalizedToolName,
-        content: buildToolResultPayloadText(message, {
-          toolName: normalizedToolName,
-          kind: normalizedToolName
-        })
+        content: cacheControlIndexes.has(index)
+          ? attachCacheControlToContent(toolResultContent, cacheControlIndexes.get(index)!)
+          : toolResultContent
       };
     }
 
