@@ -46,7 +46,7 @@ export const POLARIS_TOOLBOX_PROMPT_GROUP_ORDER: PolarisToolPromptGroup[] = [
 
 export const DEFAULT_POLARIS_TOOL_PROMPT_PREFERENCES: Record<PolarisToolPromptGroup, boolean> = {
   environment: true,
-  task: true,
+  task: false,
   room: true,
   project: false,
   desktop: true,
