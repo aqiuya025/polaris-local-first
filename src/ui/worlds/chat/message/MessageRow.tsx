@@ -18,6 +18,7 @@ import { MessageCardReference } from './MessageCardReference';
 import { MessageContent } from './MessageContent';
 import { MessageEditInline } from './MessageEditInline';
 import { MessageMeta } from './MessageMeta';
+import { MessageUsageLine } from './MessageUsageLine';
 import { MessageGeneratedImages } from './MessageGeneratedImages';
 import { MessageToolEvent } from './MessageToolEvent';
 import { isProjectedCodeToolName } from './projectedCodeTools';
@@ -481,6 +482,7 @@ function MessageRowComponent({
                 </div>
               ) : null}
               {messageActions}
+              <MessageUsageLine usage={message.tokenUsage} />
             </div>
           </div>
         </div>
