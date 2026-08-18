@@ -25,6 +25,24 @@ function createOpenRouterClaudeRequest(context: AssistantRequestContext) {
   });
 }
 
+function createDirectOpenAiRequest(context: AssistantRequestContext) {
+  return buildOpenAiCompatibleRequest({
+    api: createProviderRuntimeTestProvider({
+      baseUrl: 'https://api.openai.com/v1',
+      path: '/chat/completions',
+      model: 'gpt-5-mini',
+      capabilities: {
+        images: true,
+        streaming: true,
+        thinking: false
+      }
+    }),
+    context,
+    sessionId: 'phase-1-openai-scope-control',
+    advanced: createProviderRuntimeAdvanced({ customBody: '' })
+  });
+}
+
 function conversationMessages(context: AssistantRequestContext) {
   const segment = context.segments.find((entry) => entry.kind === 'conversation');
   if (!segment) throw new Error('Regression fixture requires a conversation segment.');
@@ -118,6 +136,21 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
     expect(tools).toHaveLength(1);
     expectFiveMinuteCacheBreakpoint(tools[0]?.content);
     expectNoCacheBreakpoint(users.at(-1)?.content);
+  });
+
+  it('prefers the completed tool result over visible assistant text from the same tool-call turn', () => {
+    const context = createProviderRuntimeTestContext({
+      withTools: true,
+      withToolHistory: true
+    });
+
+    const request = createOpenRouterClaudeRequest(context);
+    const tools = messagesWithRole(request, 'tool');
+    const assistants = messagesWithRole(request, 'assistant');
+
+    expect(tools).toHaveLength(1);
+    expectFiveMinuteCacheBreakpoint(tools[0]?.content);
+    expectNoCacheBreakpoint(assistants.at(-1)?.content);
   });
 
   it('places one rolling breakpoint after all results from a completed parallel tool-call turn', () => {
@@ -251,5 +284,18 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
 
     expect(tools).toHaveLength(1);
     expectFiveMinuteCacheBreakpoint(tools[0]?.content);
+  });
+
+  it('does not add the OpenRouter-Claude cache marker to ordinary OpenAI-compatible tool results', () => {
+    const context = createProviderRuntimeTestContext({
+      withTools: true,
+      withToolHistory: true
+    });
+    const request = createDirectOpenAiRequest(context);
+    const tools = messagesWithRole(request, 'tool');
+
+    expect(tools).toHaveLength(1);
+    expect(typeof tools[0]?.content).toBe('string');
+    expectNoCacheBreakpoint(tools[0]?.content);
   });
 });
