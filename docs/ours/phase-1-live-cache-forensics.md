@@ -1,6 +1,6 @@
 # Phase 1 Live Cache Forensics
 
-Status: **LIVE VALIDATION FAILED · ROOT CAUSE IDENTIFIED: TASK STATE MUTATES ANTHROPIC PREFIX**
+Status: **ROOT CAUSE IDENTIFIED · TASK GATE IMPLEMENTED · CI / LIVE REVALIDATION PENDING**
 
 ## Paid live evidence
 
@@ -90,12 +90,12 @@ Because Anthropic prompt-cache ordering places `tools` and `system` before `mess
 
 ## Source confirmation
 
-The source matches the live trace:
+The pre-fix source matched the live trace:
 
-- `DEFAULT_POLARIS_TOOL_PROMPT_PREFERENCES.task` is currently `true`.
-- Task-tool visibility is state-dependent: `startTask` and `completeTask` are mutually exposed according to task stage.
-- `resolveConversationTaskMode()` and the conversation-task reducer promote task state to `active` when tool execution/evidence is recorded.
-- Therefore a normal tool exchange can change the task-mode projection during the same multi-request assistant turn.
+- task tools were enabled by default;
+- task-tool visibility is state-dependent: `startTask` and `completeTask` are mutually exposed according to task stage;
+- `resolveConversationTaskMode()` and the conversation-task reducer can promote task state to `active` when tool execution/evidence is recorded;
+- therefore a normal tool exchange can change the task-mode projection during the same multi-request assistant turn.
 
 This means the cache problem is broader than Ombre Brain: any tool call capable of activating/updating the Polaris task ledger can mutate the pre-message Anthropic prefix.
 
@@ -105,7 +105,26 @@ This means the cache problem is broader than Ombre Brain: any tool call capable 
 
 The earlier message-side cache-frontier patch remains correct and should stay. The remaining fix is to stop task bookkeeping from mutating the request prefix in the Escape Pod product profile.
 
-For the Escape Pod, Task/Wait was already a planned cut/hide area, so the safest product-aligned fix is to disable the task subsystem at the request/profile boundary rather than trying to make `startTask`/`completeTask` mutations cache-compatible.
+## Implemented Escape Pod task gate
+
+The Escape Pod now disables Task at product/request boundaries without deleting the upstream subsystem:
+
+- `src/config/escapePodReleaseGates.ts`
+  - declares `taskSubsystem: false`.
+- `src/engines/tool-protocol/toolAvailability.ts`
+  - refuses the `task` tool group even if old persisted preferences still request it;
+  - therefore neither `startTask` nor `completeTask` can enter the native tools array.
+- `src/engines/tool-protocol/toolPromptPreferences.ts`
+  - defaults the Task group to off for the Escape Pod profile.
+- `src/stores/runtimeStoreToolbox.ts`
+  - normalizes old `task=true` / task-mode settings back to off on hydration.
+- `src/engines/request/requestPromptLayers.ts`
+  - strips an existing task ledger from model-facing prompt construction;
+  - rebuilds work-context without task-ledger lines while preserving workspace/runtime feedback context.
+- `src/engines/request/escapePodTaskGate.test.ts`
+  - locks the three critical contracts: task tools stay unavailable, old settings normalize off, and legacy task state does not leak back into system prompts.
+
+The implementation is intentionally a gate, not a deletion, so upstream rebases remain tractable.
 
 ## Forensic instrumentation
 
@@ -126,9 +145,9 @@ The full transformed prompt may contain private conversation/MCP data. This inst
 
 ## Next validation
 
-Do not run another paid Sonnet test until the Escape Pod task subsystem is request-gated off.
+Do not run another paid Sonnet test until the new Web Smoke run is green.
 
-After the gate is implemented and CI is green, repeat one minimal clean run:
+After CI is green, repeat one minimal clean run:
 
 1. ordinary short turn A;
 2. ordinary short turn B;
