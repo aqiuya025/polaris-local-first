@@ -1,0 +1,411 @@
+/*
+ * Escape Pod UI pass 2
+ *
+ * The first pass got the product cuts right but the visual proportions wrong:
+ * too much custom branding, an oversized dark New Chat button, no desktop
+ * conversation header, and a one-line composer. This pass deliberately moves
+ * closer to the current Claude / Chatnest reference geometry while keeping the
+ * Polaris engine and controls intact.
+ */
+
+.app-shell.has-desktop-sidebar {
+  --desktop-sidebar-width: 250px;
+  --escape-pod-reading-width: 744px;
+}
+
+.app-shell.has-desktop-sidebar.desktop-sidebar-collapsed {
+  --desktop-sidebar-width: 58px;
+}
+
+.app-shell.has-desktop-sidebar .desktop-app-sidebar.escape-pod-sidebar {
+  gap: 4px;
+  padding: max(10px, calc(8px + env(safe-area-inset-top, 0px))) 8px 10px;
+  border-right: 1px solid rgba(31, 30, 29, 0.09);
+  background: color-mix(in srgb, #f3f3f0 90%, var(--surface-solid) 10%);
+  box-shadow: none;
+}
+
+.escape-pod-sidebar-brand-row {
+  min-height: 38px;
+  padding: 0 4px 2px 7px;
+}
+
+.escape-pod-sidebar-brand {
+  color: color-mix(in srgb, var(--text) 96%, #171717 4%);
+  font-family: Georgia, 'Times New Roman', var(--font-ui);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.escape-pod-sidebar .desktop-sidebar-collapse-toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--text-muted);
+}
+
+.escape-pod-sidebar-primary {
+  gap: 0;
+  padding: 4px 0 13px;
+  border-bottom: 0;
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item,
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .escape-pod-new-chat {
+  min-height: 34px;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 88%, var(--text-soft) 12%);
+  font-size: 13.5px;
+  font-weight: 480;
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item:hover,
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item:focus-visible,
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .escape-pod-new-chat:hover,
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .escape-pod-new-chat:focus-visible {
+  outline: none;
+  background: rgba(31, 30, 29, 0.055);
+  color: var(--text);
+  box-shadow: none;
+  transform: none;
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-sidebar .desktop-sidebar-nav-item.active {
+  background: rgba(31, 30, 29, 0.07);
+  color: var(--text);
+  font-weight: 560;
+}
+
+.escape-pod-sidebar .desktop-sidebar-section-head {
+  min-height: 28px;
+  padding: 2px 8px 4px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-section-label {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-muted) 84%, transparent);
+  font-size: 12px;
+  font-weight: 480;
+  letter-spacing: 0;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-list {
+  gap: 1px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-body {
+  grid-template-columns: minmax(0, 1fr) 25px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread {
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 9px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-title {
+  gap: 8px;
+  color: color-mix(in srgb, var(--text) 90%, var(--text-soft) 10%);
+  font-size: 13px;
+  font-weight: 450;
+}
+
+.escape-pod-thread-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 46%, transparent);
+  border-radius: 999px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-row.active .desktop-sidebar-thread,
+.escape-pod-sidebar .desktop-sidebar-thread-row.menu-open .desktop-sidebar-thread,
+.escape-pod-sidebar .desktop-sidebar-thread:hover,
+.escape-pod-sidebar .desktop-sidebar-thread:focus-visible {
+  background: rgba(31, 30, 29, 0.065);
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-row.active .desktop-sidebar-thread-title {
+  font-weight: 560;
+}
+
+.escape-pod-sidebar .desktop-sidebar-thread-more {
+  width: 25px;
+  min-height: 34px;
+  border-radius: 8px;
+}
+
+.escape-pod-sidebar-footer {
+  padding-top: 6px;
+  border-top: 1px solid rgba(31, 30, 29, 0.07);
+}
+
+.escape-pod-sidebar .desktop-sidebar-settings {
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--text) 84%, var(--text-muted) 16%);
+  font-size: 13px;
+}
+
+.escape-pod-sidebar .desktop-sidebar-settings:hover,
+.escape-pod-sidebar .desktop-sidebar-settings:focus-visible {
+  background: rgba(31, 30, 29, 0.055);
+}
+
+/* A real desktop chat header: the first pass accidentally left a large blank strip. */
+.escape-pod-chat-topbar {
+  display: none;
+}
+
+.app-shell.has-desktop-sidebar .escape-pod-chat-topbar {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  min-height: 54px;
+  flex: 0 0 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(31, 30, 29, 0.055);
+  background: color-mix(in srgb, #f9f9f7 94%, var(--surface-solid) 6%);
+}
+
+.escape-pod-chat-title {
+  min-width: 0;
+  max-width: min(62vw, 560px);
+  overflow: hidden;
+  color: color-mix(in srgb, var(--text) 94%, #171717 6%);
+  font-size: 13.5px;
+  font-weight: 530;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.escape-pod-chat-model {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 190px;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-muted) 76%, var(--text) 24%);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.escape-pod-chat-model span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.escape-pod-chat-model:hover,
+.escape-pod-chat-model:focus-visible {
+  outline: none;
+  background: rgba(31, 30, 29, 0.05);
+  color: var(--text);
+}
+
+/* Main canvas: closer to Claude's warm page and readable text scale. */
+.app-shell.has-desktop-sidebar .world-chat {
+  background: color-mix(in srgb, #f9f9f7 96%, var(--surface-solid) 4%);
+}
+
+.app-shell.has-desktop-sidebar .chat-flow {
+  gap: 29px;
+  padding-top: 34px;
+  padding-right: max(32px, calc((100% - var(--escape-pod-reading-width)) / 2));
+  padding-bottom: 34px;
+  padding-left: max(32px, calc((100% - var(--escape-pod-reading-width)) / 2));
+}
+
+.app-shell.has-desktop-sidebar .message-identity-meta,
+.app-shell.has-desktop-sidebar .message-identity-row {
+  display: none;
+}
+
+.app-shell.has-desktop-sidebar .bubble.assistant {
+  color: color-mix(in srgb, var(--text) 96%, #1f1e1d 4%);
+  font-size: 16.5px;
+  line-height: 1.7;
+}
+
+.app-shell.has-desktop-sidebar .bubble.assistant .message-rich-text p {
+  margin-bottom: 1.08em;
+}
+
+.app-shell.has-desktop-sidebar .bubble.assistant .message-rich-text p:last-child {
+  margin-bottom: 0;
+}
+
+.app-shell.has-desktop-sidebar .message-turn.user .message-turn-stack {
+  max-width: min(100%, 72%);
+}
+
+.app-shell.has-desktop-sidebar .bubble.user {
+  padding: 10px 15px;
+  border-radius: 18px;
+  background: #eeeeec;
+  color: #262523;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.app-shell.has-desktop-sidebar .message-inline-actions.assistant {
+  gap: 0;
+  margin-top: 7px;
+  opacity: 0.46;
+}
+
+.app-shell.has-desktop-sidebar .msg-row.assistant:hover .message-inline-actions.assistant,
+.app-shell.has-desktop-sidebar .msg-row.assistant:focus-within .message-inline-actions.assistant {
+  opacity: 0.82;
+}
+
+.app-shell.has-desktop-sidebar .message-inline-actions.assistant .micro-action-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+}
+
+.app-shell.has-desktop-sidebar .message-usage-line {
+  margin-top: 1px;
+  color: color-mix(in srgb, var(--text-muted) 46%, transparent);
+  font-size: 9px;
+  opacity: 0.64;
+}
+
+/* Composer: two rows like current Claude instead of the first pass's thin pill. */
+.app-shell.has-desktop-sidebar .chat-dock {
+  --chat-dock-bottom-gap: 9px;
+  padding-top: 18px;
+  background: linear-gradient(
+    180deg,
+    rgba(249, 249, 247, 0) 0%,
+    rgba(249, 249, 247, 0.9) 30%,
+    #f9f9f7 64%,
+    #f9f9f7 100%
+  );
+}
+
+.app-shell.has-desktop-sidebar .chat-composer {
+  width: min(100%, calc(var(--escape-pod-reading-width) + 56px));
+  gap: 6px;
+  padding: 0 18px;
+}
+
+.app-shell.has-desktop-sidebar .chat-box-shell {
+  min-height: 94px;
+  padding: 8px 10px 7px;
+  border: 1px solid rgba(31, 30, 29, 0.18);
+  border-radius: 22px;
+  background: #fbfbfa;
+  box-shadow:
+    0 1px 2px rgba(31, 30, 29, 0.03),
+    0 8px 22px rgba(31, 30, 29, 0.055);
+  backdrop-filter: none;
+}
+
+.app-shell.has-desktop-sidebar .chat-box-shell:focus-within {
+  border: 1px solid rgba(31, 30, 29, 0.25);
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(31, 30, 29, 0.035),
+    0 10px 26px rgba(31, 30, 29, 0.065);
+}
+
+.app-shell.has-desktop-sidebar .chat-box-main {
+  display: grid;
+  min-height: 78px;
+  grid-template-columns: 38px minmax(0, 1fr) 40px;
+  grid-template-rows: minmax(40px, auto) 34px;
+  column-gap: 6px;
+  row-gap: 1px;
+  align-items: center;
+}
+
+.app-shell.has-desktop-sidebar .chat-box textarea {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 40px;
+  max-height: 172px;
+  padding: 8px 10px 3px;
+  color: #262523;
+  font-size: 15.5px;
+  line-height: 1.45;
+}
+
+.app-shell.has-desktop-sidebar .chat-box textarea::placeholder {
+  color: #9a9891;
+}
+
+.app-shell.has-desktop-sidebar .composer-quick-actions {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 34px;
+  justify-self: start;
+}
+
+.app-shell.has-desktop-sidebar .composer-slot-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  color: #6f6d67;
+}
+
+.app-shell.has-desktop-sidebar .send-btn {
+  grid-column: 3;
+  grid-row: 2;
+  width: 34px;
+  height: 34px;
+  justify-self: end;
+  border-radius: 999px;
+}
+
+.app-shell.has-desktop-sidebar .chat-composer::after {
+  content: 'Polaris can make mistakes. Check important information.';
+  display: block;
+  min-height: 13px;
+  color: color-mix(in srgb, var(--text-muted) 62%, transparent);
+  font-size: 9.5px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.escape-pod-sidebar.collapsed .escape-pod-sidebar-brand {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+  .app-shell.has-desktop-sidebar {
+    --desktop-sidebar-width: 230px;
+    --escape-pod-reading-width: 700px;
+  }
+
+  .app-shell.has-desktop-sidebar .chat-flow {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
