@@ -1,6 +1,6 @@
 # Escape Pod Plan / 逃生舱计划
 
-Status: **PHASE 0 SEALED · PHASE 1 READY**
+Status: **PHASE 0 SEALED · CACHE FIX IMPLEMENTED · VALIDATION PENDING**
 
 This document defines the working roadmap for the aqiuya Polaris fork.
 
@@ -151,18 +151,27 @@ Phase-0 conclusions:
 - treat complete backup ZIPs as credential-bearing secrets;
 - enter runtime work through the cache regression suite, not UI cleanup.
 
-### Phase 1 — Cache regression suite
+### Phase 1 — Cache regression suite — **AUTHORED**
 
-Before fixing production code:
+The dedicated OpenRouter Claude cache regression suite now covers ordinary conversation caching, completed native tool results, parallel and sequential tools, large tool results, post-tool user continuation, and a scope guard for ordinary OpenAI-compatible providers.
 
-1. Add focused tests for ordinary conversation caching.
-2. Add failing regression coverage for `assistant tool_call -> tool_result -> continuation`.
-3. Add multi-tool and large-tool-result cases.
-4. Confirm expected OpenRouter/Anthropic request shape.
+Focused workflow:
 
-### Phase 2 — Minimal cache fix
+- `.github/workflows/phase1-cache-regression.yml`
 
-Make the smallest provider/runtime change needed to advance the cache frontier across completed native tool history.
+Implementation record:
+
+- `docs/ours/phase-1-cache-fix.md`
+
+Actual test-run evidence is still required before this phase is considered execution-validated.
+
+### Phase 2 — Minimal cache fix — **IMPLEMENTED / VALIDATION PENDING**
+
+The smallest provider/runtime patch has been applied in `providerRuntimeOpenAiCompatibleAdapter.ts`:
+
+- completed native tool results may advance the OpenRouter-Claude rolling 5-minute cache frontier;
+- the selected native tool result receives the explicit content-block cache marker;
+- incomplete tool history, transcript fallback and ordinary OpenAI-compatible providers remain outside this change.
 
 Do not mix this patch with product UI cleanup.
 
@@ -206,6 +215,6 @@ Runtime changes should be small, test-backed and separately reviewable.
 
 ## Current active task
 
-**Phase 1 — design and add the prompt-cache regression suite.**
+**Cache execution validation, then Phase 3 web-first smoke build.**
 
-The first runtime change must be a failing regression test for the native tool/MCP cache frontier. Production cache code is not to be modified until the failure is reproduced and the intended OpenRouter/Anthropic request shape is explicit.
+Do not declare the cache fix complete until there is an actual test-run result and a small Sonnet live run demonstrates that the post-MCP cache frontier advances instead of repeatedly rewriting the same large suffix.
