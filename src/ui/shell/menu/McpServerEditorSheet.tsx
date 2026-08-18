@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { buildMcpHandle } from '../../../engines/mcpHandle';
+import {
+  beginMcpOAuthAuthorization,
+  clearMcpOAuthAuthorization,
+  hasStoredMcpOAuthAuthorization
+} from '../../../engines/mcpOAuth';
 import { resolveMcpToolCatalog, type McpResolvedToolDefinition } from '../../../engines/mcpRuntime';
 import { useI18n } from '../../../i18n/useI18n';
 import type { McpServerConfig, McpServerHeader, McpServerToolConfig, McpServerTransport } from '../../../types/domain';
@@ -45,6 +50,15 @@ function mergeDiscoveredTools(
   });
 }
 
+function parseOAuthRequirement(message: string) {
+  const requiresOAuth = message.includes('需要 OAuth 授权') || /HTTP\s+401\b/.test(message);
+  if (!requiresOAuth) return null;
+  const explicitMatch = message.match(/资源元数据：(https?:\/\/[^\s·]+)/);
+  if (explicitMatch?.[1]) return explicitMatch[1];
+  const jsonMatch = message.match(/"resource_metadata"\s*:\s*"([^"]+)"/);
+  return jsonMatch?.[1] ?? '';
+}
+
 export function McpServerEditorSheet({
   open,
   server,
@@ -62,18 +76,30 @@ export function McpServerEditorSheet({
   const [tools, setTools] = useState<McpServerToolConfig[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [testState, setTestState] = useState<McpConnectionTestState>({ status: 'idle' });
+  const [oauthResourceMetadataUrl, setOauthResourceMetadataUrl] = useState<string | null>(null);
+  const [oauthConnected, setOauthConnected] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    const nextUrl = server?.url ?? '';
     setName(server?.name ?? '');
     setDescription(server?.description ?? '');
     setTransport(server?.transport ?? 'streamable-http');
-    setUrl(server?.url ?? '');
+    setUrl(nextUrl);
     setHeaders(server?.headers.length ? server.headers : []);
     setTools(server?.tools ?? []);
     setIsActive(server?.isActive ?? true);
     setTestState({ status: 'idle' });
+    setOauthResourceMetadataUrl(null);
+    setOauthConnected(Boolean(nextUrl && hasStoredMcpOAuthAuthorization(nextUrl)));
+    setOauthBusy(false);
   }, [open, server]);
+
+  useEffect(() => {
+    if (!open) return;
+    setOauthConnected(Boolean(url.trim() && hasStoredMcpOAuthAuthorization(url.trim())));
+  }, [open, url]);
 
   if (!open) return null;
 
@@ -121,7 +147,18 @@ export function McpServerEditorSheet({
         includeDisabledTools: true
       });
       if (result.errors.length) {
-        setTestState({ status: 'error', message: result.errors.join('\n') });
+        const message = result.errors.join('\n');
+        const oauthMetadataUrl = parseOAuthRequirement(message);
+        if (oauthMetadataUrl !== null) {
+          setOauthResourceMetadataUrl(oauthMetadataUrl || null);
+          setOauthConnected(hasStoredMcpOAuthAuthorization(trimmedUrl));
+          setTestState({
+            status: 'warning',
+            message: '这个 MCP 需要 OAuth 授权。点击下方“连接账户”完成登录后会自动重新测试。'
+          });
+          return;
+        }
+        setTestState({ status: 'error', message });
         return;
       }
       if (!result.tools.length) {
@@ -129,6 +166,8 @@ export function McpServerEditorSheet({
         return;
       }
 
+      setOauthResourceMetadataUrl(null);
+      setOauthConnected(hasStoredMcpOAuthAuthorization(trimmedUrl));
       setTools((current) => mergeDiscoveredTools(current, result.tools));
       const toolNames = result.tools.map((tool) => tool.toolName).slice(0, 4).join(t('settings.mcp.testToolSeparator'));
       const summary = result.tools.length > 4
@@ -136,11 +175,53 @@ export function McpServerEditorSheet({
         : t('settings.mcp.testToolSummary', { count: result.tools.length });
       setTestState({ status: 'success', message: t('settings.mcp.testSuccess', { summary, tools: toolNames }) });
     } catch (error) {
+      const message = error instanceof Error ? error.message : t('settings.mcp.testFailed');
+      const oauthMetadataUrl = parseOAuthRequirement(message);
+      if (oauthMetadataUrl !== null) {
+        setOauthResourceMetadataUrl(oauthMetadataUrl || null);
+        setTestState({
+          status: 'warning',
+          message: '这个 MCP 需要 OAuth 授权。点击下方“连接账户”完成登录后会自动重新测试。'
+        });
+        return;
+      }
+      setTestState({ status: 'error', message });
+    }
+  };
+
+  const authorizeOAuth = async () => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setTestState({ status: 'error', message: t('settings.mcp.testMissingUrl') });
+      return;
+    }
+    setOauthBusy(true);
+    setTestState({ status: 'warning', message: '正在打开 MCP OAuth 登录页…' });
+    try {
+      await beginMcpOAuthAuthorization({
+        serverUrl: trimmedUrl,
+        serverName: name.trim() || undefined,
+        resourceMetadataUrl: oauthResourceMetadataUrl
+      });
+      setOauthConnected(true);
+      setOauthResourceMetadataUrl(null);
+      setTestState({ status: 'success', message: 'OAuth 授权成功，正在重新读取 MCP 工具目录…' });
+      await testConnection();
+    } catch (error) {
       setTestState({
         status: 'error',
-        message: error instanceof Error ? error.message : t('settings.mcp.testFailed')
+        message: error instanceof Error ? error.message : 'MCP OAuth 授权失败。'
       });
+    } finally {
+      setOauthBusy(false);
     }
+  };
+
+  const disconnectOAuth = () => {
+    const trimmedUrl = url.trim();
+    if (trimmedUrl) clearMcpOAuthAuthorization(trimmedUrl);
+    setOauthConnected(false);
+    setTestState({ status: 'warning', message: '已清除这个 MCP 在本浏览器中的 OAuth token。' });
   };
 
   const submit = () => {
@@ -247,7 +328,7 @@ export function McpServerEditorSheet({
               type="button"
               className="mcp-btn secondary mcp-test-button"
               onClick={testConnection}
-              disabled={testState.status === 'testing'}
+              disabled={testState.status === 'testing' || oauthBusy}
             >
               {testState.status === 'testing' ? t('settings.mcp.testing') : t('settings.mcp.testConnection')}
             </button>
@@ -258,6 +339,23 @@ export function McpServerEditorSheet({
                   ? t('settings.mcp.testReading')
                   : testState.message}
             </p>
+            {oauthResourceMetadataUrl !== null || oauthConnected ? (
+              <div className="mcp-inline-sheet-actions">
+                <button
+                  type="button"
+                  className="mcp-btn primary"
+                  onClick={authorizeOAuth}
+                  disabled={oauthBusy || testState.status === 'testing'}
+                >
+                  {oauthBusy ? '授权中…' : oauthConnected ? '重新授权' : '连接账户'}
+                </button>
+                {oauthConnected ? (
+                  <button type="button" className="mcp-btn secondary" onClick={disconnectOAuth} disabled={oauthBusy}>
+                    断开 OAuth
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="mcp-tool-editor">
@@ -273,7 +371,7 @@ export function McpServerEditorSheet({
                 type="button"
                 className="theme-inline-action"
                 onClick={testConnection}
-                disabled={testState.status === 'testing'}
+                disabled={testState.status === 'testing' || oauthBusy}
               >
                 {t('settings.mcp.refreshTools')}
               </button>
