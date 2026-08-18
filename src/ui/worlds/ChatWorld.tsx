@@ -1,6 +1,7 @@
 import type { DragEvent } from 'react';
 import { Suspense, lazy, useRef } from 'react';
 import { loadThinkingSheetModule } from '../app-shell/appShellLazyModules';
+import { Icon } from '../Icon';
 import { ChatComposer } from './chat/composer/ChatComposer';
 import { useComposerFileIngest } from './chat/composer/useComposerFileIngest';
 import { ChatProvider } from './chat/ChatProvider';
@@ -26,6 +27,30 @@ type ChatWorldProps = {
   ui: ChatUiState;
 };
 
+function formatModelLabel(rawModel: string | null | undefined, fallback: string) {
+  const raw = rawModel?.trim();
+  if (!raw) return fallback;
+  const normalized = raw.replace(/^anthropic\//i, '').replace(/^claude-/i, '');
+  const match = normalized.match(/^(opus|sonnet|haiku)[-_]?([0-9]+(?:\.[0-9]+)?)/i);
+  if (!match) return raw;
+  const family = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+  return `${family} ${match[2]}`;
+}
+
+function resolveLatestModelLabel(
+  messages: ReturnType<typeof useChatStablePayload>['messages'],
+  configuredModel: string | undefined,
+  fallback: string
+) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === 'assistant' && message.model?.trim()) {
+      return formatModelLabel(message.model, fallback);
+    }
+  }
+  return formatModelLabel(configuredModel, fallback);
+}
+
 function ChatWorldLayout({ shell }: ChatWorldProps) {
   const stablePayload = useChatStablePayload();
   const presentation = useChatPresentation();
@@ -37,6 +62,11 @@ function ChatWorldLayout({ shell }: ChatWorldProps) {
   const thinkingSummaryMessage = ui.thinkingSummaryMessageId
     ? stablePayload.messages.find((message) => message.id === ui.thinkingSummaryMessageId) ?? null
     : null;
+  const modelLabel = resolveLatestModelLabel(
+    stablePayload.messages,
+    stablePayload.persona?.advanced.modelOverride,
+    presentation.assistantName
+  );
   const isFileDrag = (event: DragEvent<HTMLElement>) => event.dataTransfer?.types.includes('Files') ?? false;
   const handleDragEnter = (event: DragEvent<HTMLElement>) => {
     if (!isFileDrag(event)) return;
@@ -75,6 +105,21 @@ function ChatWorldLayout({ shell }: ChatWorldProps) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <header className="escape-pod-chat-topbar">
+        <div className="escape-pod-chat-title" title={presentation.conversationTitle ?? undefined}>
+          {presentation.conversationTitle?.trim() || 'New chat'}
+        </div>
+        <button
+          type="button"
+          className="escape-pod-chat-model"
+          onClick={shell.openProviderSettings}
+          title="Model settings"
+          aria-label={`Model settings: ${modelLabel}`}
+        >
+          <span>{modelLabel}</span>
+          <Icon name="chevron" size={12} />
+        </button>
+      </header>
       <div className="chat-body">
         <MessageTimeline isWorldSettled={shell.isActiveWorld && !shell.isWorldSwitching} />
       </div>
