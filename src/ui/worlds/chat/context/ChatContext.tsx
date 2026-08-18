@@ -98,6 +98,7 @@ export type ChatContextActionsValue = {
   reviveTheme: () => void;
   restoreDefaultTheme: () => void;
   openToolbox: () => void;
+  openProviderSettings: () => void;
   createConversation: () => void;
   openConversation: (conversationId: string) => void;
   acceptWorkspaceProposal: () => Promise<void>;
