@@ -1,6 +1,6 @@
 # Escape Pod Plan / 逃生舱计划
 
-Status: **PHASE 0 SEALED · CACHE REGRESSION CI GREEN · LIVE VALIDATION PENDING**
+Status: **PHASE 0 SEALED · PHASE 1 CACHE PROVIDER-LIVE GREEN · WEB PRODUCT WORK NEXT**
 
 This document defines the working roadmap for the aqiuya Polaris fork.
 
@@ -88,140 +88,129 @@ The fallback does not need:
 
 Voice, image generation, native desktop companion, iOS/Android wrappers and other extras are deferred until the web fallback is stable.
 
-## P0: API cost and prompt cache correctness
+## P0 / Phase 1: API cost and prompt cache correctness
 
 Prompt caching is a hard product requirement, not an optimization.
 
-### Known failure
+### Original failure
 
-OpenRouter Claude requests cache normal conversation prefixes, but after native MCP/tool history the short-lived cache frontier can remain stuck before the tool exchange. Subsequent requests repeatedly rewrite the post-tool region instead of reading it from cache.
+OpenRouter Claude requests cached normal conversation prefixes, but after native MCP/tool history the reusable cache frontier stalled before the tool exchange. Subsequent requests repeatedly rewrote the post-tool region instead of reading it from cache.
 
-Observed live test pattern:
+Observed historical patterns included:
 
-- before MCP: roughly 21k input with roughly 21k cache read
-- after MCP: roughly 48k-52k input; cache read stays near the old 21k-23k prefix; roughly 27k-29k is repeatedly written
+- before MCP: roughly 21k-23k input with roughly the same cache read
+- after MCP: cache read stayed near the old prefix while roughly 20k-49k post-tool suffix was repeatedly rewritten
 - an earlier Opus 4.7 session produced roughly 1.28M prompt tokens, roughly 1.22M cache writes, zero cache reads and about $8.20 cost
+
+### Root cause and fix
+
+Provider-live forensics proved that Polaris Task bookkeeping mutated both Anthropic `tools` and `system` across the tool continuation boundary (`startTask` / `completeTask` plus task-ledger/work-runtime prompt changes). Since Anthropic cache ordering places tools and system before messages, that invalidated downstream conversation cache even when the tool result carried a valid cache marker.
+
+The Escape Pod fix therefore has two parts:
+
+- completed native tool results participate in the rolling conversation cache frontier;
+- Task is release-gated off at request/product boundaries so it cannot mutate the pre-message prefix.
+
+### Provider-live validation — GREEN
+
+Final real OpenRouter Claude Sonnet 4.6 + real Ombre Brain validation showed the intended rolling behavior:
+
+```text
+first breath request:
+read ≈ 21k · write ≈ 0.1k · cache ≈ 100%
+
+continuation after breath result:
+read ≈ 21k · write ≈ 20k
+
+second breath request:
+read ≈ 42k · write ≈ 0.1k · cache ≈ 100%
+
+continuation after second breath result:
+read ≈ 42k · write ≈ 20k
+
+next ordinary turn:
+read ≈ 62k · write ≈ 0.2k · cache ≈ 100%
+```
+
+The transformed upstream request simultaneously stayed stable at the pre-message prefix:
+
+```text
+prefix same
+system same
+tools same
+```
+
+This closes Phase 1: MCP result history is now written once and reused by later requests.
+
+### Current TTL policy
+
+The Escape Pod intentionally mixes TTLs:
+
+- stable identity/capability prefix: **1 hour**;
+- rolling conversation + native tool-result frontier: **5 minutes**.
+
+This keeps the expensive stable tools/system prefix warm longer while avoiding the 1-hour write premium on every increment of a growing conversation.
 
 ### P0 acceptance contract
 
-A runtime change must not be considered complete until all of these pass:
+Current status:
 
-- ordinary multi-turn chat advances cache reads
-- one MCP tool call + result does not permanently stall the cache frontier
-- multiple MCP exchanges remain cacheable
-- large MCP results do not force the same suffix to be rewritten every turn
-- file/attachment interaction does not silently destroy stable-prefix caching
-- switching model/provider clearly invalidates or rebuilds cache rather than producing misleading health metrics
-- cache behavior remains correct with custom body empty; no user workaround should be required
+- ordinary multi-turn chat advances cache reads — **PASS**
+- one MCP tool call + result does not permanently stall the cache frontier — **PASS (provider-live)**
+- repeated identical MCP exchanges remain cacheable — **PASS (provider-live)**
+- large MCP results are not rewritten every later turn — **PASS (provider-live)**
+- custom body workaround is not required — **PASS**
+- file/attachment cache behavior — **later regression coverage**
+- model/provider switches clearly rebuild cache — **later regression coverage**
 
 ### Cost observability target
 
 Expose per-conversation/request health such as:
 
-- input tokens
-- cache read tokens
-- cache write tokens
-- cache hit ratio
-- estimated/current cost when the provider exposes it
+```text
+Cache 82% · read 148k · write 31k · $0.18
+```
 
-Future UI concept:
+Polaris already stores enough per-message/cache telemetry for the read/write/coverage portion, and the Escape Pod now renders compact per-assistant usage lines in chat. Cost estimation can be layered on later.
 
-`Cache 82% · read 148k · write 31k · $0.18`
+## Phase 0 architecture inventory — SEALED
 
-and a warning state when writes grow while reads stop advancing.
+See `docs/ours/phase-0-inventory.md`.
 
-## Phase plan
+High-level rule:
 
-### Phase 0 — Inventory only — **SEALED**
+- hide UI first;
+- disable request/tool lanes next;
+- delete dead code only after the simplified product runs reliably.
 
-No runtime changes were made.
+Do not physically delete central orchestration (`chatReplyRuntime`, `requestPreparation`, Persona internals, Collection/project storage) early.
 
-The implementation inventory, Cut Map, Web Map, migration/security observations and Phase-1 entry contract are frozen in:
+## Web-first direction
 
-- `docs/ours/phase-0-inventory.md`
+The working architecture is:
 
-Phase-0 conclusions:
+```text
+Browser / PWA
+  ↓
+Polaris Vite app
+  ↓
+Provider direct request when possible
+  ↓ fallback only when necessary
+small self-owned API/relay surface
+```
 
-- keep Polaris as the engine/runtime base;
-- simplify/reframe Projects and Artifacts instead of rebuilding them;
-- keep Persona/Collection internals while removing social/product framing;
-- disable unwanted Memory/Task/Proactive/tool request lanes before deleting code;
-- use the static Vite + explicit `/api` handler deployment path for web-first work;
-- preserve IndexedDB LocalData and structured backup/import for the first web smoke build;
-- treat complete backup ZIPs as credential-bearing secrets;
-- enter runtime work through the cache regression suite, not UI cleanup.
+Keep browser IndexedDB / LocalData as the primary store for the first web version.
 
-### Phase 1 — Cache regression suite — **CI GREEN**
+Known backend-requiring paths include Web Search `/api/search`, provider relay fallback, and possibly a narrow MCP relay when a remote MCP endpoint cannot satisfy browser CORS.
 
-The dedicated OpenRouter Claude cache regression suite covers ordinary conversation caching, completed native tool results, parallel and sequential tools, large tool results, post-tool user continuation, and a scope guard for ordinary OpenAI-compatible providers.
+MCP OAuth is implemented for Web and real Ombre Brain OAuth connectivity has already been exercised during the provider-live cache validation.
 
-Focused workflow:
+## Next product phase
 
-- `.github/workflows/phase1-cache-regression.yml`
+With provider-live cache correctness green, move back to the planned Web product work:
 
-Observed GitHub Actions sequence:
-
-- pre-fix regression run on `8f995e4` failed;
-- `a7b384a` passed after the production fix;
-- `9547a81` passed with extended regression coverage;
-- `9a05c00` passed with provider-scope and visible-assistant guards.
-
-Implementation record:
-
-- `docs/ours/phase-1-cache-fix.md`
-
-Phase 1 is execution-validated.
-
-### Phase 2 — Minimal cache fix — **IMPLEMENTED / CI VALIDATED / LIVE VALIDATION PENDING**
-
-The smallest provider/runtime patch has been applied in `providerRuntimeOpenAiCompatibleAdapter.ts`:
-
-- completed native tool results may advance the OpenRouter-Claude rolling 5-minute cache frontier;
-- the selected native tool result receives the explicit content-block cache marker;
-- incomplete tool history, transcript fallback and ordinary OpenAI-compatible providers remain outside this change.
-
-Do not mix this patch with product UI cleanup.
-
-Remaining requirement: one small paid provider-level validation with Sonnet on the forked build. Opus is never the first test target.
-
-### Phase 3 — Web-first smoke build
-
-Produce a private self-hosted web build that can:
-
-- open a chat
-- configure/use provider routes
-- upload files/images
-- use MCP
-- show cache health
-- export/import local data
-
-### Phase 4 — Product slimming
-
-Hide or disable unwanted surfaces first. Remove dead code only after the retained Chat / Projects / Artifacts / Tools flows are stable.
-
-### Phase 5 — Claude-style UI cleanup
-
-Use Chatnest and current Claude interaction patterns as references while keeping Polaris internals.
-
-Prioritize:
-
-- simple left navigation
-- clear recents
-- compact model selector
-- quiet thinking/tool trace row with expandable detail
-- clean attachment composer
-- Projects and Artifacts terminology
-- cache/usage visibility without clutter
-
-## Branch policy
-
-- `main`: stay close to upstream
-- `ours`: aqiuya working branch
-
-Runtime changes should be small, test-backed and separately reviewable.
-
-## Current active task
-
-**Phase 3 — web-first smoke build, followed by one Sonnet live cache validation.**
-
-The focused regression suite is green. The remaining cache question is provider-level accounting on real OpenRouter traffic: after one MCP/tool result, subsequent requests must read the new prefix instead of repeatedly rewriting the same post-tool suffix.
+1. keep Web Smoke green while slimming visible settings/tool groups;
+2. progressively hide Memory / Group / Task / Theme / Calendar / Proactive product surfaces;
+3. preserve Projects / Artifacts internals and simplify their UI;
+4. move the shell toward the Claude-like Chats / Projects / Artifacts / Tools / Settings layout;
+5. continue using the opt-in OpenRouter upstream forensic overlay as a regression aid while request-shape-affecting features are changed.
