@@ -1,12 +1,23 @@
 # Phase 3 Web Smoke / 本地网页实测
 
-Status: **LOCAL SMOKE READY · LIVE PROVIDER VALIDATION PENDING**
+Status: **WEB SMOKE CI GREEN · LOCAL LIVE VALIDATION NEXT**
 
 ## Goal
 
 Run the `ours` branch as a local web app before public/private deployment, connect OpenRouter Claude and the real Ombre Brain MCP, and inspect prompt-cache accounting on every assistant request/continuation.
 
 Deployment is not required for this first desktop test. Polaris is already a Vite web app.
+
+## CI status
+
+The dedicated web smoke workflow now passes on commit `00431b0` after replacing ES2022-only `Array.prototype.at()` usage in the regression test with an ES2020-compatible helper.
+
+Observed green checks:
+
+- **Phase 1 Cache Regression** — passed on `00431b0`;
+- **Escape Pod Web Smoke** — passed on `00431b0`.
+
+This confirms the current `ours` branch passes the focused cache regression suite, TypeScript checking, and a production web build before paid live validation.
 
 ## Local run
 
