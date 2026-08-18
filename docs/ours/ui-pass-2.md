@@ -1,6 +1,6 @@
 # Escape Pod UI Pass 2
 
-Status: **IMPLEMENTED · CI / VISUAL REVIEW PENDING**
+Status: **IMPLEMENTED · SCREENSHOT FINE-TUNE APPLIED · CI / NEXT VISUAL REVIEW PENDING**
 
 ## Why Pass 2 exists
 
@@ -41,7 +41,7 @@ This removes the large unexplained blank strip at the top of the chat world.
 - keep assistant replies directly on the page without assistant bubbles;
 - increase assistant body text and line-height slightly;
 - keep user replies as a neutral light bubble;
-- keep RikkaHub-style cache telemetry, but visually demote it below the normal answer/actions.
+- keep RikkaHub-style cache telemetry available below the normal answer/actions.
 
 ### Composer
 
@@ -56,6 +56,25 @@ Pass 2 changes only CSS geometry, not request wiring:
 
 Attachments, MCP/toolbox, card references, workspace banner, slash commands and streaming stop/send remain connected to the existing Polaris implementation.
 
+## Visual fine-tune from the next side-by-side screenshot
+
+The next direct comparison with current Claude exposed three smaller mismatches rather than another structural problem:
+
+1. **Two exposed shell gutters beside the chat world.**
+   - Root cause: upstream wide desktop layout gives `.app-stage` `padding-inline: var(--desktop-shell-inline)` while the Escape Pod chat already centers its reading column internally.
+   - Result: the stage padding remained visible as two pale vertical strips between the sidebar / browser edge and the chat world.
+   - Fix: Escape Pod desktop now sets `.app-stage { padding-inline: 0; }`; the chat world runs edge-to-edge and the reading column keeps its own centered padding.
+
+2. **Sidebar typography still too heavy / large.**
+   - New / Projects / Artifacts are reduced to 12.5px / light weight.
+   - Chat titles are reduced to 12px / regular weight.
+   - Section and Settings typography are also lighter and slightly smaller.
+   - The main conversation typography is intentionally left unchanged in this fine-tune.
+
+3. **Cache telemetry became too visually demoted.**
+   - `in / read / write / miss / out / cache` is product diagnostics, not ornamental metadata.
+   - It is raised from 9px to 11px with stronger contrast and spacing so cache behavior remains readable without opening the Usage page.
+
 ## Rebase strategy
 
 Pass 2 is isolated in `src/styles/escape-pod-ui-pass2.css`, imported after Pass 1. This makes the screenshot-driven corrections easy to inspect, revise or drop without rewriting the upstream style graph.
@@ -69,4 +88,4 @@ git pull
 npm run dev
 ```
 
-Review the normal desktop URL and compare directly against the supplied Claude / Chatnest screenshots. The next iteration should adjust only visible mismatches from the new screenshot instead of making another broad speculative redesign.
+Review the normal desktop URL and compare directly against the supplied Claude / Chatnest screenshots. Continue with small screenshot-driven corrections; do not make another broad redesign while the core proportions are converging.
