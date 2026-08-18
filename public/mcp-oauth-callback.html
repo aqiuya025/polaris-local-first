@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Polaris MCP OAuth</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: Canvas; color: CanvasText; }
+    main { max-width: 30rem; padding: 2rem; text-align: center; }
+    p { opacity: .72; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <main>
+    <strong id="title">正在完成 MCP 授权…</strong>
+    <p id="detail">完成后此窗口会自动关闭。</p>
+  </main>
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const payload = {
+        type: 'polaris:mcp-oauth-callback',
+        code: params.get('code') || undefined,
+        state: params.get('state') || undefined,
+        error: params.get('error') || undefined,
+        errorDescription: params.get('error_description') || undefined
+      };
+      const title = document.getElementById('title');
+      const detail = document.getElementById('detail');
+
+      if (!window.opener) {
+        title.textContent = '无法返回 Polaris';
+        detail.textContent = '原来的 Polaris 页面已经关闭，请回到应用后重新发起 MCP OAuth 授权。';
+        return;
+      }
+
+      try {
+        window.opener.postMessage(payload, window.location.origin);
+        title.textContent = payload.error ? '授权未完成' : 'MCP 授权完成';
+        detail.textContent = payload.errorDescription || (payload.error ? payload.error : '可以关闭这个窗口。');
+        window.setTimeout(() => window.close(), 120);
+      } catch (error) {
+        title.textContent = '返回 Polaris 失败';
+        detail.textContent = error instanceof Error ? error.message : String(error);
+      }
+    })();
+  </script>
+</body>
+</html>
