@@ -6,6 +6,7 @@ on:
       - ours
     paths:
       - 'src/**'
+      - 'public/**'
       - 'index.html'
       - 'package.json'
       - 'package-lock.json'
@@ -36,6 +37,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: MCP OAuth regression
+        run: npx vitest run src/engines/mcpOAuth.test.ts
 
       - name: Build web app
         run: npm run build
