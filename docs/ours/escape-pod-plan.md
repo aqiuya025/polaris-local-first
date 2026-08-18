@@ -1,6 +1,6 @@
 # Escape Pod Plan / 逃生舱计划
 
-Status: **STARTED**
+Status: **PHASE 0 SEALED · PHASE 1 READY**
 
 This document defines the working roadmap for the aqiuya Polaris fork.
 
@@ -132,28 +132,24 @@ and a warning state when writes grow while reads stop advancing.
 
 ## Phase plan
 
-### Phase 0 — Inventory only
+### Phase 0 — Inventory only — **SEALED**
 
-No runtime changes.
+No runtime changes were made.
 
-Map the existing Polaris implementation for:
+The implementation inventory, Cut Map, Web Map, migration/security observations and Phase-1 entry contract are frozen in:
 
-- Chat
-- Projects/Workspace
-- Artifacts/Collection
-- Tools/MCP/Web
-- Provider/runtime/cache
-- Attachments
-- Settings/backup
+- `docs/ours/phase-0-inventory.md`
 
-For each area mark:
+Phase-0 conclusions:
 
-- KEEP
-- KEEP/SIMPLIFY
-- HIDE/CUT
-- DEFER
-
-Also note coupling risk: whether hiding an entry is safe or whether deleting the subsystem would affect core chat/runtime.
+- keep Polaris as the engine/runtime base;
+- simplify/reframe Projects and Artifacts instead of rebuilding them;
+- keep Persona/Collection internals while removing social/product framing;
+- disable unwanted Memory/Task/Proactive/tool request lanes before deleting code;
+- use the static Vite + explicit `/api` handler deployment path for web-first work;
+- preserve IndexedDB LocalData and structured backup/import for the first web smoke build;
+- treat complete backup ZIPs as credential-bearing secrets;
+- enter runtime work through the cache regression suite, not UI cleanup.
 
 ### Phase 1 — Cache regression suite
 
@@ -208,8 +204,8 @@ Prioritize:
 
 Runtime changes should be small, test-backed and separately reviewable.
 
-## First active task
+## Current active task
 
-**Read-only implementation inventory of the five retained product surfaces and the cache/tool request path.**
+**Phase 1 — design and add the prompt-cache regression suite.**
 
-No runtime code is to be changed until the inventory and cache regression design are written down.
+The first runtime change must be a failing regression test for the native tool/MCP cache frontier. Production cache code is not to be modified until the failure is reproduced and the intended OpenRouter/Anthropic request shape is explicit.
