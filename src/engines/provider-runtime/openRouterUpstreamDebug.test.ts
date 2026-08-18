@@ -3,6 +3,7 @@ import type { ProviderHttpRequest } from './providerRuntimeTypes';
 import {
   enableOpenRouterUpstreamDebug,
   extractOpenRouterUpstreamBody,
+  normalizeOpenRouterUpstreamDebugEntry,
   summarizeOpenRouterUpstreamBody
 } from './openRouterUpstreamDebug';
 
@@ -74,5 +75,27 @@ describe('OpenRouter upstream debug instrumentation', () => {
     expect(summary.systemFingerprint).toHaveLength(8);
     expect(summary.toolsFingerprint).toHaveLength(8);
     expect(summary.prefixFingerprint).toHaveLength(8);
+  });
+
+  it('rebuilds a complete summary from a persisted legacy entry with a partial summary', () => {
+    const legacy = {
+      at: 123,
+      body: {
+        model: 'claude-sonnet-4-6',
+        system: [{ type: 'text', text: 'stable' }],
+        tools: [{ name: 'breath' }],
+        messages: [{ role: 'user', content: 'hello' }]
+      },
+      summary: {
+        model: 'claude-sonnet-4-6'
+      }
+    };
+
+    const normalized = normalizeOpenRouterUpstreamDebugEntry(legacy);
+    expect(normalized?.at).toBe(123);
+    expect(normalized?.summary.messageRoles).toEqual(['user']);
+    expect(normalized?.summary.cacheControlPaths).toEqual([]);
+    expect(normalized?.summary.systemFingerprint).toHaveLength(8);
+    expect(normalized?.summary.toolsFingerprint).toHaveLength(8);
   });
 });
