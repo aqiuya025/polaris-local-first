@@ -1,6 +1,6 @@
 # Phase 1/2 Cache Fix Record
 
-Status: **IMPLEMENTED · EXECUTION VALIDATION PENDING**
+Status: **IMPLEMENTED · CI GREEN · PAID LIVE VALIDATION PENDING**
 
 This note records the first runtime patch in the Escape Pod Plan.
 
@@ -89,13 +89,18 @@ A focused GitHub Actions workflow exists at:
 
 It runs the dedicated Vitest file when provider-runtime code changes on `ours`.
 
-## Validation state
+## CI validation
 
-Do **not** mark the fix as fully validated yet.
+GitHub Actions was observed directly in the repository UI after the patch sequence:
 
-The source shape and regression expectations have been reviewed, but the current ChatGPT GitHub connector does not expose the push-triggered workflow run/check result, and the local execution environment cannot clone/install this repository from GitHub.
+- pre-fix workflow run on `8f995e4` failed, as expected for the red regression stage;
+- `a7b384a` — cache-frontier production fix — passed;
+- `9547a81` — extended regression coverage — passed;
+- `9a05c00` — OpenRouter-Claude scope guard and visible-assistant case — passed.
 
-Before Phase 2 is declared complete, obtain at least one actual test-run result and then perform a small paid live verification on the forked web build.
+This provides actual execution evidence that the focused regression suite is green after the fix, not only static source review.
+
+The production patch is therefore **CI validated**. The remaining validation is the paid provider-level behavior test against real OpenRouter Claude prompt-cache accounting.
 
 ## Paid live validation contract
 
