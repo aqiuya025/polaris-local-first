@@ -17,6 +17,7 @@ import {
   resolveProviderRuntimeCompatibilityToolHistoryMode,
   type ProviderRuntimeCompatibilityState
 } from './provider-runtime/providerRuntimeCompatibility';
+import { enableOpenRouterUpstreamDebug } from './provider-runtime/openRouterUpstreamDebug';
 import {
   executeBuiltRequest,
   resolveRequestTransportPath
@@ -104,6 +105,7 @@ export async function requestAssistantReply(params: RequestAssistantReplyParams)
     if (outputTokenBudgetFallback !== null) {
       applyProviderRuntimeOutputTokenBudget(request, outputTokenBudgetFallback);
     }
+    request = enableOpenRouterUpstreamDebug(request);
     onBuiltRequest?.(request);
     const requestController = new AbortController();
     let idleTimer: number | null = null;
