@@ -1,3 +1,4 @@
+import { ESCAPE_POD_RELEASE_GATES } from '../../config/escapePodReleaseGates';
 import type {
   AssistantToolContext,
   AssistantToolEnforcementScope,
@@ -43,6 +44,9 @@ function isPolarisToolGroupAllowedByScope(
   group: PolarisToolPromptGroup,
   enforcementScope?: AssistantToolEnforcementScope
 ) {
+  if (group === 'task' && !ESCAPE_POD_RELEASE_GATES.taskSubsystem) {
+    return false;
+  }
   if (enforcementScope === 'theme-only') {
     return group === 'theme';
   }
