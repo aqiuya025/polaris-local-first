@@ -1,3 +1,4 @@
+import { ESCAPE_POD_RELEASE_GATES } from '../../config/escapePodReleaseGates';
 import type { AssistantToolContext } from '../assistantToolProtocol';
 import type { ProviderCapabilityPromptInjection } from '../provider-runtime';
 import type { AssistantPromptPart, PersonaRuntimePromptSource } from './requestAudit';
@@ -40,13 +41,24 @@ export function buildAssistantPromptParts(params: {
   toolProtocolMode?: AssistantToolPromptProtocolMode;
 }): AssistantPromptPart[] {
   const { personaPrompt, personaPromptSource, templateContext, messages, regexTriggers, currentTask, includeRuntimeClockContext, promptInjections, toolContext, toolProtocolMode } = params;
+  const effectiveCurrentTask = ESCAPE_POD_RELEASE_GATES.taskSubsystem ? currentTask : null;
+  const effectiveToolContext: AssistantToolContext | undefined =
+    ESCAPE_POD_RELEASE_GATES.taskSubsystem || !toolContext
+      ? toolContext
+      : {
+          ...toolContext,
+          taskMode: 'seed',
+          // Rebuild the work-context projection below without task-ledger state.
+          // Workspace/runtime feedback remains available through the other fields.
+          workContext: undefined
+        };
   const systemIdentityEntries = buildSystemIdentityEntries();
   const identityEntries = buildIdentityEntries({
     personaPrompt,
     personaPromptSource,
     templateContext
   });
-  const modelRuntimeEntry = buildModelRuntimeEntry({ promptInjections, toolContext });
+  const modelRuntimeEntry = buildModelRuntimeEntry({ promptInjections, toolContext: effectiveToolContext });
   const runtimeClockEntry = includeRuntimeClockContext ? buildRuntimeClockEntry(templateContext) : null;
   const regexTriggerEntry = {
     name: 'regex_trigger_context' as const,
@@ -58,8 +70,16 @@ export function buildAssistantPromptParts(params: {
     enabled: false,
     charCount: 0
   };
-  const workRuntimeEntry = buildWorkRuntimeEntry({ currentTask, messages, toolContext });
-  const capabilityEntries = buildCapabilityEntries({ messages, toolContext, toolProtocolMode });
+  const workRuntimeEntry = buildWorkRuntimeEntry({
+    currentTask: effectiveCurrentTask,
+    messages,
+    toolContext: effectiveToolContext
+  });
+  const capabilityEntries = buildCapabilityEntries({
+    messages,
+    toolContext: effectiveToolContext,
+    toolProtocolMode
+  });
 
   return [
     ...systemIdentityEntries,
