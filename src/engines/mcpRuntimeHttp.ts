@@ -18,6 +18,7 @@ import type {
   JsonRpcNotification,
   JsonRpcRequest
 } from './mcpRuntimeJsonRpc';
+import { resolveMcpOAuthAuthorizationHeader } from './mcpOAuth';
 import { createTimeoutError } from './mcpRuntimeTiming';
 import {
   buildServerHeaders,
@@ -33,6 +34,17 @@ export type StreamableSession = {
   protocolVersion: string;
   sessionId?: string;
 };
+
+export class McpAuthorizationRequiredError extends Error {
+  readonly resourceMetadataUrl: string | null;
+  readonly status = 401;
+
+  constructor(label: string, resourceMetadataUrl: string | null, detail?: string) {
+    super(`${label} 需要 OAuth 授权。${resourceMetadataUrl ? ` 资源元数据：${resourceMetadataUrl}` : ''}${detail ? ` · ${detail}` : ''}`);
+    this.name = 'McpAuthorizationRequiredError';
+    this.resourceMetadataUrl = resourceMetadataUrl;
+  }
+}
 
 function shouldUseNativeMcpHttp(url: string, options: McpTransportOptions) {
   if (options.fetchImpl) {
@@ -77,7 +89,7 @@ function createResponseFromNativeHttp(result: Awaited<ReturnType<typeof Capacito
   });
 }
 
-async function requestMcpHttp(
+async function requestMcpHttpOnce(
   url: string,
   init: RequestInit,
   options: McpTransportOptions
@@ -100,6 +112,41 @@ async function requestMcpHttp(
   });
 
   return createResponseFromNativeHttp(nativeResponse);
+}
+
+async function requestMcpHttp(
+  url: string,
+  init: RequestInit,
+  options: McpTransportOptions
+) {
+  const headers = new Headers(init.headers ?? undefined);
+  const hasExplicitAuthorization = headers.has('Authorization');
+  let oauthHeader: string | null = null;
+
+  if (!hasExplicitAuthorization) {
+    oauthHeader = await resolveMcpOAuthAuthorizationHeader(options.server.url, {
+      fetchImpl: options.fetchImpl
+    }).catch(() => null);
+    if (oauthHeader) headers.set('Authorization', oauthHeader);
+  }
+
+  let response = await requestMcpHttpOnce(url, { ...init, headers }, options);
+  if (response.status !== 401 || hasExplicitAuthorization || !oauthHeader) {
+    return response;
+  }
+
+  const refreshedHeader = await resolveMcpOAuthAuthorizationHeader(options.server.url, {
+    fetchImpl: options.fetchImpl,
+    forceRefresh: true
+  }).catch(() => null);
+  if (!refreshedHeader || refreshedHeader === oauthHeader) {
+    return response;
+  }
+
+  const retryHeaders = new Headers(headers);
+  retryHeaders.set('Authorization', refreshedHeader);
+  response = await requestMcpHttpOnce(url, { ...init, headers: retryHeaders }, options);
+  return response;
 }
 
 function dispatchJsonRpcFromSseData(
@@ -127,6 +174,20 @@ async function readSseResponseForId(response: Response, expectedId: JsonRpcId, l
   throw new Error(`${label} 没有在 SSE 响应里拿到结果。`);
 }
 
+function extractResourceMetadataUrl(wwwAuthenticate: string | null, errorText: string) {
+  const headerMatch = wwwAuthenticate?.match(/resource_metadata\s*=\s*"([^"]+)"/i);
+  if (headerMatch?.[1]) return headerMatch[1].trim();
+  try {
+    const parsed = JSON.parse(errorText) as { resource_metadata?: unknown };
+    if (typeof parsed.resource_metadata === 'string' && parsed.resource_metadata.trim()) {
+      return parsed.resource_metadata.trim();
+    }
+  } catch {
+    // Some MCP servers only advertise the metadata URL in WWW-Authenticate.
+  }
+  return null;
+}
+
 async function parseHttpJsonRpcResponse(
   response: Response,
   expectedId: JsonRpcId,
@@ -136,6 +197,13 @@ async function parseHttpJsonRpcResponse(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
+    if (response.status === 401) {
+      throw new McpAuthorizationRequiredError(
+        label,
+        extractResourceMetadataUrl(response.headers.get('www-authenticate'), errorText),
+        errorText.trim()
+      );
+    }
     throw new Error(`${label} 失败：HTTP ${response.status}${errorText ? ` · ${errorText.trim()}` : ''}`);
   }
 
