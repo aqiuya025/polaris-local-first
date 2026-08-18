@@ -156,11 +156,47 @@ export function summarizeOpenRouterUpstreamBody(body: JsonRecord): OpenRouterUps
   };
 }
 
+export function normalizeOpenRouterUpstreamDebugEntry(value: unknown): OpenRouterUpstreamDebugEntry | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const body = asRecord(record.body);
+  if (!body) return null;
+  const at = typeof record.at === 'number' && Number.isFinite(record.at)
+    ? record.at
+    : Date.now();
+
+  // Recompute summary from the raw upstream body on every read. This keeps
+  // persisted captures compatible when the debug-summary schema evolves and
+  // prevents a stale/partial debug entry from breaking app startup.
+  return {
+    at,
+    body,
+    summary: summarizeOpenRouterUpstreamBody(body)
+  };
+}
+
+export function normalizeOpenRouterUpstreamDebugEntries(value: unknown): OpenRouterUpstreamDebugEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(normalizeOpenRouterUpstreamDebugEntry)
+    .filter((entry): entry is OpenRouterUpstreamDebugEntry => Boolean(entry))
+    .slice(-MAX_ENTRIES);
+}
+
 function readStorage(): OpenRouterUpstreamDebugEntry[] {
   if (typeof localStorage === 'undefined') return [];
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return Array.isArray(parsed) ? parsed as OpenRouterUpstreamDebugEntry[] : [];
+    const normalized = normalizeOpenRouterUpstreamDebugEntries(parsed);
+    // Heal old persisted summaries in place without touching the raw bodies.
+    if (Array.isArray(parsed) && normalized.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      } catch {
+        // A debug migration must never block startup.
+      }
+    }
+    return normalized;
   } catch {
     return [];
   }
