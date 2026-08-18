@@ -1,6 +1,6 @@
 # Phase 1 Live Cache Forensics
 
-Status: **LIVE VALIDATION FAILED · ROOT CAUSE NARROWED TO UPSTREAM PREFIX MUTATION**
+Status: **LIVE VALIDATION FAILED · ROOT CAUSE IDENTIFIED: TASK STATE MUTATES ANTHROPIC PREFIX**
 
 ## Paid live evidence
 
@@ -16,15 +16,13 @@ miss   ≈ 49k
 cache  ≈ 31-32%
 ```
 
-The critical fact is that `read` stayed around 23k while roughly the same 49k suffix was missed and written again on later normal turns.
+The critical fact is that `read` stayed around 23k while roughly the same suffix was missed and written again on later normal turns.
 
-Therefore the first patch was **necessary but not sufficient**. It proves Polaris can emit a cache marker on a completed native tool result, but real OpenRouter/Anthropic cache reuse still does not advance through the post-MCP conversation.
-
-Do not describe Phase 1 as provider-live validated yet.
+Therefore the first patch was necessary but not sufficient. It correctly keeps a completed native tool result eligible for the rolling message-side cache frontier, but another prefix component was changing before message history.
 
 ## Clean forensic run
 
-A new conversation was then run with OpenRouter `echo_upstream_body` enabled:
+A new conversation was run with OpenRouter `echo_upstream_body` enabled:
 
 1. ordinary short turn A;
 2. ordinary short turn B;
@@ -45,89 +43,102 @@ first ordinary turn after the tool exchange:
 input ≈ 44k · read ≈ 23k · write ≈ 21k · miss ≈ 21k · cache ≈ 52%
 ```
 
-This pins the failure boundary very tightly:
+This pins the failure boundary:
 
 - ordinary conversation caching is healthy before MCP;
-- asking the model to call the MCP is still healthy;
-- the cache collapses on the **continuation request after the MCP result enters history**;
-- the next ordinary turn recovers only the old ~23k stable prefix, not the newly written post-tool history.
+- the request that asks the model to call the MCP is still healthy;
+- the cache collapses on the continuation request after the MCP result enters history;
+- the next ordinary turn recovers only the old stable prefix, not the newly written post-tool history.
 
-The upstream-body overlay on that first ordinary post-tool turn reported:
+## Exact upstream diff
+
+The saved OpenRouter-transformed Anthropic bodies were compared locally with no additional provider request.
+
+Observed diff between the tool continuation and the next ordinary turn:
 
 ```text
-prefix CHANGED
-system CHANGED · ~13.3k serialized chars
-tools  CHANGED · ~26.9k serialized chars
-cache markers: 2
+system[4] CHANGED
+system[5] CHANGED
+system[6] CHANGED
+system[7] CHANGED
+system[8] ADDED
+
+tools ADDED (1): startTask
+tools REMOVED (1): completeTask
+
+cache marker ADDED:
   $.system[6].cache_control
   $.messages[8].content[0].cache_control
+
+cache marker REMOVED:
+  $.system[5].cache_control
+  $.messages[6].content[0].content[0].cache_control
 ```
 
-This is the strongest evidence so far. The transformed request reaching Anthropic does retain explicit cache markers, but both components that precede message history in Anthropic prompt-cache ordering — `tools` and `system` — changed between adjacent requests. Therefore a message-history cache written on the MCP continuation cannot be reused by the next ordinary request even when the message-side breakpoint itself is correct.
+The important mutation is not Ombre Brain content. It is Polaris task state.
 
-The current question is no longer “does the tool result get a cache marker?”; it is **which exact system block and/or tool definitions mutate across the tool continuation boundary, and why**.
+The changed system blocks show the task capability/runtime prompt moving between:
 
-## Current high-probability hypothesis
+- task-ledger capability instructions;
+- active-task runtime prompt;
+- ordinary markdown/tool capability prompt;
+- current work-context projection.
 
-Polaris deliberately orders stable system messages before conversation history and defers volatile system messages until after conversation history on the OpenAI-compatible request surface.
+At the same boundary, the Anthropic `tools` array changes from `completeTask` to `startTask`.
 
-OpenRouter then converts Chat Completions into Anthropic Messages. Anthropic cache ordering is effectively:
+Because Anthropic prompt-cache ordering places `tools` and `system` before `messages`, changing either invalidates every downstream message-history cache prefix even when the `tool_result` itself carries a valid `cache_control` marker.
 
-```text
-tools -> system -> messages
-```
+## Source confirmation
 
-If OpenRouter gathers Polaris' deferred `role: system` messages back into Anthropic's `system` field, any per-request volatile system block can move **in front of the entire conversation history**. A timestamp, current work context, runtime feedback, or similar changing block would then invalidate the prefix after the stable ~23k region every turn.
+The source matches the live trace:
 
-The live capture now proves the **upstream prefix really changes**. What remains to prove is which block(s) cause the system mutation and which tool entry/entries cause the tools mutation.
+- `DEFAULT_POLARIS_TOOL_PROMPT_PREFERENCES.task` is currently `true`.
+- Task-tool visibility is state-dependent: `startTask` and `completeTask` are mutually exposed according to task stage.
+- `resolveConversationTaskMode()` and the conversation-task reducer promote task state to `active` when tool execution/evidence is recorded.
+- Therefore a normal tool exchange can change the task-mode projection during the same multi-request assistant turn.
+
+This means the cache problem is broader than Ombre Brain: any tool call capable of activating/updating the Polaris task ledger can mutate the pre-message Anthropic prefix.
+
+## Root-cause statement
+
+**The live cache failure is caused by Polaris task bookkeeping changing both the Anthropic `tools` array and system capability/runtime blocks across a tool continuation boundary.**
+
+The earlier message-side cache-frontier patch remains correct and should stay. The remaining fix is to stop task bookkeeping from mutating the request prefix in the Escape Pod product profile.
+
+For the Escape Pod, Task/Wait was already a planned cut/hide area, so the safest product-aligned fix is to disable the task subsystem at the request/profile boundary rather than trying to make `startTask`/`completeTask` mutations cache-compatible.
 
 ## Forensic instrumentation
 
-OpenRouter's documented development-only debug option is wired into `ours` behind this URL flag:
+OpenRouter upstream capture remains available behind:
 
 ```text
 ?debugUpstream=1
 ```
 
-When enabled for a streaming OpenRouter Claude request, Polaris adds:
+It records the transformed Anthropic body locally and compares:
 
-```json
-{
-  "debug": {
-    "echo_upstream_body": true
-  }
-}
-```
+- `tools`;
+- `system`;
+- cache marker paths;
+- message roles/count.
 
-OpenRouter returns the exact transformed upstream Anthropic request body in the first SSE chunk.
+The full transformed prompt may contain private conversation/MCP data. This instrumentation is opt-in and local-only.
 
-Implemented files:
+## Next validation
 
-- `src/engines/provider-runtime/openRouterUpstreamDebug.ts`
-  - enables the debug request only for streaming `openrouter.ai` Claude routes;
-  - extracts `debug.echo_upstream_body`;
-  - stores the latest 8 captures locally;
-  - fingerprints `tools`, `system`, and the combined pre-message prefix;
-  - records every `cache_control` path in the transformed upstream body.
-- `src/engines/chat-api/chatApiStreamingCollector.ts`
-  - observes raw parsed stream chunks before normal provider event handling.
-- `src/app/developer/openRouterUpstreamDebugOverlay.ts`
-  - shows a local `UPSTREAM N` button only when `debugUpstream=1` is active;
-  - compares the latest capture to the previous one and labels prefix/system/tools as `same` or `CHANGED`;
-  - now also explains the existing stored captures without another provider call by listing changed `system[index]` blocks and tool names that were added, removed, schema-changed, or merely reordered;
-  - displays cache marker paths and raw transformed JSON;
-  - can copy the latest upstream JSON locally.
+Do not run another paid Sonnet test until the Escape Pod task subsystem is request-gated off.
 
-The full transformed prompt may contain private conversation/MCP data. This instrumentation is intentionally opt-in and local-only and must not be used as a production default.
+After the gate is implemented and CI is green, repeat one minimal clean run:
 
-## Next step — no more paid calls yet
+1. ordinary short turn A;
+2. ordinary short turn B;
+3. one real OB `breath` call;
+4. one short ordinary follow-up;
+5. stop.
 
-Do **not** run another Sonnet request yet.
+Expected result:
 
-The browser already holds the captured upstream bodies from the clean run. Pull the latest `ours` and refresh the same localhost origin. The upgraded overlay can diff those existing captures locally and should identify:
-
-1. the exact changed Anthropic `system[index]` block(s), with short before/after previews;
-2. tool names added, removed, schema-changed, or reordered;
-3. cache-marker path changes.
-
-Only after that local diff identifies the mutation should production code be changed and a single paid confirmation run be attempted.
+- `tools` fingerprint remains stable across the MCP continuation;
+- task-related `system` blocks do not appear/change;
+- the continuation may write the new post-tool prefix once;
+- the following ordinary turn reads that expanded prefix instead of falling back to the old ~23k region.
