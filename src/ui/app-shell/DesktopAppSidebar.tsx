@@ -130,15 +130,7 @@ export function DesktopAppSidebar(props: DesktopAppSidebarProps) {
   return (
     <aside className={`desktop-app-sidebar escape-pod-sidebar ${collapsed ? 'collapsed' : ''}`} aria-label={t('desktop.navLabel')}>
       <div className="escape-pod-sidebar-brand-row">
-        <div className="escape-pod-sidebar-brand" aria-label="Polaris Escape Pod">
-          <span className="escape-pod-sidebar-brand-mark" aria-hidden="true">
-            <Icon name="polarisStar" size={17} />
-          </span>
-          <span className="escape-pod-sidebar-brand-copy">
-            <strong>Polaris</strong>
-            <small>Escape Pod</small>
-          </span>
-        </div>
+        <strong className="escape-pod-sidebar-brand">Polaris</strong>
         <button
           type="button"
           className="desktop-sidebar-collapse-toggle"
@@ -147,25 +139,24 @@ export function DesktopAppSidebar(props: DesktopAppSidebarProps) {
           title={collapsed ? t('desktop.expandSidebarTitle') : t('desktop.collapseSidebarTitle')}
           aria-pressed={collapsed}
         >
-          <Icon name="sidebar" size={17} />
+          <Icon name="sidebar" size={16} />
         </button>
       </div>
 
-      <button
-        type="button"
-        className="escape-pod-new-chat"
-        onClick={() => {
-          setActionMenuConversationId(null);
-          setEditingConversationId(null);
-          setConversationTitleDraft('');
-          onCreateConversation();
-        }}
-      >
-        <Icon name="plus" size={16} />
-        <span>{t('common.newConversation')}</span>
-      </button>
-
       <nav className="desktop-sidebar-section escape-pod-sidebar-primary" aria-label="Escape Pod navigation">
+        <button
+          type="button"
+          className="desktop-sidebar-nav-item escape-pod-new-chat"
+          onClick={() => {
+            setActionMenuConversationId(null);
+            setEditingConversationId(null);
+            setConversationTitleDraft('');
+            onCreateConversation();
+          }}
+        >
+          <Icon name="plus" size={17} />
+          <span>New</span>
+        </button>
         {escapePodShelfItems.map((item) => {
           const config = ESCAPE_POD_SHELVES[item.shelf]!;
           const active = activeWorld === 'collection' && collectionShelf === item.shelf;
@@ -185,16 +176,7 @@ export function DesktopAppSidebar(props: DesktopAppSidebarProps) {
 
       <section className="desktop-sidebar-section desktop-sidebar-threads" aria-label={t('desktop.conversationThreads')}>
         <div className="desktop-sidebar-section-head">
-          <p className="desktop-sidebar-section-label">Recents</p>
-          <button
-            type="button"
-            className="desktop-sidebar-thread-create"
-            onClick={onCreateConversation}
-            aria-label={t('common.newConversation')}
-            title={t('common.newConversation')}
-          >
-            <Icon name="plus" size={14} />
-          </button>
+          <p className="desktop-sidebar-section-label">Chats</p>
         </div>
         <div className="desktop-sidebar-thread-list">
           {sortedConversations.length > 0 ? (
@@ -258,7 +240,7 @@ export function DesktopAppSidebar(props: DesktopAppSidebarProps) {
                         }}
                       >
                         <span className="desktop-sidebar-thread-title">
-                          {conversation.pinnedAt ? <Icon name="polarisStar" size={9} /> : null}
+                          {conversation.pinnedAt ? <Icon name="polarisStar" size={8} /> : <span className="escape-pod-thread-dot" aria-hidden="true" />}
                           <span>{conversation.displayTitle}</span>
                         </span>
                       </button>
@@ -273,7 +255,7 @@ export function DesktopAppSidebar(props: DesktopAppSidebarProps) {
                         title={t('desktop.conversationActionsTitle')}
                         aria-expanded={menuOpen}
                       >
-                        <Icon name="more" size={15} />
+                        <Icon name="more" size={14} />
                       </button>
                     </div>
                   )}
@@ -325,7 +307,7 @@ export function DesktopAppSidebar(props: DesktopAppSidebarProps) {
           aria-label={t('common.settings')}
           title={t('common.settings')}
         >
-          <Icon name="settings" size={17} />
+          <Icon name="settings" size={16} />
           <span>{t('common.settings')}</span>
         </button>
       </footer>
