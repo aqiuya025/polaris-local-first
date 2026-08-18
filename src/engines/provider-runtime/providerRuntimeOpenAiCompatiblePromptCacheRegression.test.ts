@@ -63,6 +63,10 @@ function messagesWithRole(
   return wireMessages(request).filter((message) => message.role === role);
 }
 
+function lastMessage(messages: Array<Record<string, unknown>>) {
+  return messages[messages.length - 1];
+}
+
 function expectFiveMinuteCacheBreakpoint(content: unknown) {
   expect(content).toEqual(expect.arrayContaining([
     expect.objectContaining({
@@ -114,7 +118,7 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
 
     expect(request.body).not.toHaveProperty('cache_control');
     expect(request.body.session_id).toBe('phase-1-cache-regression');
-    expectFiveMinuteCacheBreakpoint(users.at(-1)?.content);
+    expectFiveMinuteCacheBreakpoint(lastMessage(users)?.content);
   });
 
   it('advances the rolling breakpoint through a completed tool result when the tool-call assistant has no visible text', () => {
@@ -135,7 +139,7 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
 
     expect(tools).toHaveLength(1);
     expectFiveMinuteCacheBreakpoint(tools[0]?.content);
-    expectNoCacheBreakpoint(users.at(-1)?.content);
+    expectNoCacheBreakpoint(lastMessage(users)?.content);
   });
 
   it('prefers the completed tool result over visible assistant text from the same tool-call turn', () => {
@@ -150,7 +154,7 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
 
     expect(tools).toHaveLength(1);
     expectFiveMinuteCacheBreakpoint(tools[0]?.content);
-    expectNoCacheBreakpoint(assistants.at(-1)?.content);
+    expectNoCacheBreakpoint(lastMessage(assistants)?.content);
   });
 
   it('places one rolling breakpoint after all results from a completed parallel tool-call turn', () => {
@@ -253,7 +257,7 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
 
     expect(tools).toHaveLength(1);
     expectNoCacheBreakpoint(tools[0]?.content);
-    expectFiveMinuteCacheBreakpoint(users.at(-1)?.content);
+    expectFiveMinuteCacheBreakpoint(lastMessage(users)?.content);
   });
 
   it('keeps a large completed tool result eligible for the rolling cache frontier', () => {
