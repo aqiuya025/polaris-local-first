@@ -26,7 +26,7 @@ function stableNormalize(value: unknown): unknown {
 }
 
 function stableStringify(value: unknown) {
-  return JSON.stringify(stableNormalize(value));
+  return JSON.stringify(stableNormalize(value)) ?? 'undefined';
 }
 
 function fingerprint(value: unknown) {
@@ -88,7 +88,7 @@ function describeSystemChanges(currentBody: JsonRecord, previousBody: JsonRecord
   for (let index = 0; index < max; index += 1) {
     const currentBlock = current[index];
     const previousBlock = previous[index];
-    if (fingerprint(currentBlock) === fingerprint(previousBlock)) continue;
+    if (previousBlock === undefined && currentBlock === undefined) continue;
     if (previousBlock === undefined) {
       lines.push(`system[${index}] ADDED · ${compactText(currentBlock)}`);
       continue;
@@ -97,6 +97,7 @@ function describeSystemChanges(currentBody: JsonRecord, previousBody: JsonRecord
       lines.push(`system[${index}] REMOVED · ${compactText(previousBlock)}`);
       continue;
     }
+    if (fingerprint(currentBlock) === fingerprint(previousBlock)) continue;
     lines.push(`system[${index}] CHANGED`);
     lines.push(`  was: ${compactText(previousBlock)}`);
     lines.push(`  now: ${compactText(currentBlock)}`);
@@ -151,8 +152,8 @@ function describeToolChanges(currentBody: JsonRecord, previousBody: JsonRecord) 
 }
 
 function describeCacheMarkerChanges(entry: OpenRouterUpstreamDebugEntry, previous: OpenRouterUpstreamDebugEntry) {
-  const current = new Set(entry.summary.cacheControlPaths);
-  const prior = new Set(previous.summary.cacheControlPaths);
+  const current = new Set(entry.summary.cacheControlPaths ?? []);
+  const prior = new Set(previous.summary.cacheControlPaths ?? []);
   const added = [...current].filter((path) => !prior.has(path));
   const removed = [...prior].filter((path) => !current.has(path));
   const lines: string[] = [];
@@ -277,19 +278,25 @@ export function installOpenRouterUpstreamDebugOverlay() {
   panel.append(header, summary, diff, details);
 
   const render = () => {
-    const entries = readOpenRouterUpstreamDebugEntries();
-    button.textContent = `UPSTREAM ${entries.length}`;
-    if (!entries.length) {
-      summary.textContent = 'Waiting for OpenRouter debug chunk…';
-      diff.textContent = '';
-      raw.textContent = '';
-      return;
+    try {
+      const entries = readOpenRouterUpstreamDebugEntries();
+      button.textContent = `UPSTREAM ${entries.length}`;
+      if (!entries.length) {
+        summary.textContent = 'Waiting for OpenRouter debug chunk…';
+        diff.textContent = '';
+        raw.textContent = '';
+        return;
+      }
+      const latest = entries[entries.length - 1]!;
+      const previous = entries.length > 1 ? entries[entries.length - 2] : undefined;
+      summary.textContent = formatSummary(latest, previous);
+      diff.textContent = formatBodyDiff(latest, previous);
+      raw.textContent = JSON.stringify(latest.body, null, 2);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      diff.textContent = `forensics render error: ${message}`;
+      console.warn('[polaris-openrouter-upstream] overlay render failed', error);
     }
-    const latest = entries[entries.length - 1]!;
-    const previous = entries.length > 1 ? entries[entries.length - 2] : undefined;
-    summary.textContent = formatSummary(latest, previous);
-    diff.textContent = formatBodyDiff(latest, previous);
-    raw.textContent = JSON.stringify(latest.body, null, 2);
   };
 
   button.addEventListener('click', () => {
