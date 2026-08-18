@@ -159,6 +159,70 @@ describe('OpenRouter Claude prompt-cache frontier across native tool history', (
     expectFiveMinuteCacheBreakpoint(tools[1]?.content);
   });
 
+  it('advances the rolling breakpoint to the latest of multiple completed tool exchanges', () => {
+    const context = createProviderRuntimeTestContext({
+      withTools: true,
+      withToolHistory: false
+    });
+    const messages = conversationMessages(context);
+
+    messages.push({
+      role: 'assistant',
+      content: '',
+      toolCalls: [{
+        id: 'call-sequential-1',
+        name: 'patchRawCss',
+        argumentsText: '{"value":"one"}'
+      }]
+    });
+    pushToolResult(messages, {
+      id: 'call-sequential-1',
+      payload: { kind: 'patchRawCss', css: '.one { color: red; }' }
+    });
+    messages.push({
+      role: 'assistant',
+      content: '',
+      toolCalls: [{
+        id: 'call-sequential-2',
+        name: 'patchRawCss',
+        argumentsText: '{"value":"two"}'
+      }]
+    });
+    pushToolResult(messages, {
+      id: 'call-sequential-2',
+      payload: { kind: 'patchRawCss', css: '.two { color: blue; }' }
+    });
+
+    const request = createOpenRouterClaudeRequest(context);
+    const tools = messagesWithRole(request, 'tool');
+
+    expect(tools).toHaveLength(2);
+    expectNoCacheBreakpoint(tools[0]?.content);
+    expectFiveMinuteCacheBreakpoint(tools[1]?.content);
+  });
+
+  it('moves the rolling breakpoint back to the latest user text after a completed tool exchange', () => {
+    const context = createProviderRuntimeTestContext({
+      withTools: true,
+      withToolHistory: true
+    });
+    const messages = conversationMessages(context);
+    const toolCallAssistant = messages.find((message) =>
+      message.role === 'assistant' && Boolean(message.toolCalls?.length)
+    );
+    if (!toolCallAssistant) throw new Error('Regression fixture requires an assistant tool call.');
+    toolCallAssistant.content = '';
+    messages.push({ role: 'user', content: 'Continue after the tool result.' });
+
+    const request = createOpenRouterClaudeRequest(context);
+    const tools = messagesWithRole(request, 'tool');
+    const users = messagesWithRole(request, 'user');
+
+    expect(tools).toHaveLength(1);
+    expectNoCacheBreakpoint(tools[0]?.content);
+    expectFiveMinuteCacheBreakpoint(users.at(-1)?.content);
+  });
+
   it('keeps a large completed tool result eligible for the rolling cache frontier', () => {
     const context = createProviderRuntimeTestContext({
       withTools: true,
