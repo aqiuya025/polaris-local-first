@@ -44,5 +44,8 @@ jobs:
       - name: OpenRouter upstream forensics regression
         run: npx vitest run src/engines/provider-runtime/openRouterUpstreamDebug.test.ts
 
+      - name: Escape Pod task gate regression
+        run: npx vitest run src/engines/request/escapePodTaskGate.test.ts
+
       - name: Build web app
         run: npm run build
